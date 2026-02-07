@@ -1,0 +1,196 @@
+import { Language } from '../types';
+
+export const translations: Record<Language, any> = {
+    en: {
+        common: {
+            loading: 'Loading...',
+            bookNow: 'Book Now',
+            price: 'Price',
+            duration: 'Duration',
+            distance: 'Distance',
+            altitude: 'Altitude',
+            spotsLeft: 'spots left',
+            perPerson: 'per person',
+            searchPlaceholder: 'Search trips...',
+            back: 'Back',
+            confirm: 'Confirm',
+            cancel: 'Cancel',
+        },
+        nav: {
+            explore: 'Explore',
+            chat: 'Chat',
+            myTrips: 'My Trips',
+            profile: 'Profile',
+            addTrip: 'Add Trip',
+        },
+        home: {
+            greeting: 'Hello',
+            categories: {
+                all: 'All',
+                hiking: 'Hiking',
+                camping: 'Camping',
+                sightseeing: 'Sightseeing',
+            },
+            featured: 'Featured Trips',
+        },
+        trip: {
+            organizer: 'Organizer',
+            booked: 'Booked',
+            insufficientFunds: 'Insufficient Funds',
+            bookSuccess: 'Trip booked successfully!',
+            weatherTitle: 'Weather Forecast',
+        },
+        create: {
+            title: 'Create New Trip',
+            autoFill: 'Auto-Fill with AI',
+            tripTitle: 'Trip Title',
+            location: 'Location',
+            price: 'Price (UZS)',
+            seats: 'Max Seats',
+            publish: 'Publish Trip',
+            generating: 'Generating...',
+        },
+        profile: {
+            wallet: 'Wallet Balance',
+            withdraw: 'Withdraw',
+            settings: 'Settings',
+            theme: 'Theme',
+            language: 'Language',
+            guideMode: 'Switch to Guide Mode',
+            travelerMode: 'Switch to Traveler Mode',
+            verified: 'Verified Guide',
+            completed: 'Trips Completed',
+        },
+        wallet: {
+            withdrawConfirm: "Are you sure you want to withdraw all funds?"
+        }
+    },
+    ru: {
+        common: {
+            loading: 'Загрузка...',
+            bookNow: 'Забронировать',
+            price: 'Цена',
+            duration: 'Длительность',
+            distance: 'Расстояние',
+            altitude: 'Высота',
+            spotsLeft: 'мест осталось',
+            perPerson: 'с человека',
+            searchPlaceholder: 'Поиск туров...',
+            back: 'Назад',
+            confirm: 'Подтвердить',
+            cancel: 'Отмена',
+        },
+        nav: {
+            explore: 'Поиск',
+            chat: 'Чат',
+            myTrips: 'Мои поездки',
+            profile: 'Профиль',
+            addTrip: 'Создать',
+        },
+        home: {
+            greeting: 'Привет',
+            categories: {
+                all: 'Все',
+                hiking: 'Походы',
+                camping: 'Кемпинг',
+                sightseeing: 'Экскурсии',
+            },
+            featured: 'Популярные туры',
+        },
+        trip: {
+            organizer: 'Организатор',
+            booked: 'Забронировано',
+            insufficientFunds: 'Недостаточно средств',
+            bookSuccess: 'Успешно забронировано!',
+            weatherTitle: 'Прогноз погоды',
+        },
+        create: {
+            title: 'Создать тур',
+            autoFill: 'Авто-заполнение (AI)',
+            tripTitle: 'Название',
+            location: 'Местоположение',
+            price: 'Цена (UZS)',
+            seats: 'Мест',
+            publish: 'Опубликовать',
+            generating: 'Генерация...',
+        },
+        profile: {
+            wallet: 'Баланс кошелька',
+            withdraw: 'Вывести',
+            settings: 'Настройки',
+            theme: 'Тема',
+            language: 'Язык',
+            guideMode: 'Режим гида',
+            travelerMode: 'Режим туриста',
+            verified: 'Проверенный гид',
+            completed: 'Туров завершено',
+        },
+        wallet: {
+            withdrawConfirm: "Вы уверены, что хотите вывести все средства?"
+        }
+    },
+    uz: {
+        common: {
+            loading: 'Yuklanmoqda...',
+            bookNow: 'Band qilish',
+            price: 'Narx',
+            duration: 'Davomiyligi',
+            distance: 'Masofa',
+            altitude: 'Balandlik',
+            spotsLeft: 'joy qoldi',
+            perPerson: 'kishi boshiga',
+            searchPlaceholder: 'Sayoxatlarni qidirish...',
+            back: 'Orqaga',
+            confirm: 'Tasdiqlash',
+            cancel: 'Bekor qilish',
+        },
+        nav: {
+            explore: 'Kashf eting',
+            chat: 'Chat',
+            myTrips: 'Sayohatlarim',
+            profile: 'Profil',
+            addTrip: 'Qo\'shish',
+        },
+        home: {
+            greeting: 'Salom',
+            categories: {
+                all: 'Barchasi',
+                hiking: 'Piyoda yurish',
+                camping: 'Kemping',
+                sightseeing: 'Tomosha qilish',
+            },
+            featured: 'Mashhur turlar',
+        },
+        trip: {
+            organizer: 'Tashkilotchi',
+            booked: 'Band qilingan',
+            insufficientFunds: 'Mablag\' yetarli emas',
+            bookSuccess: 'Muvaffaqiyatli band qilindi!',
+            weatherTitle: 'Ob-havo ma\'lumoti',
+        },
+        create: {
+            title: 'Yangi tur yaratish',
+            autoFill: 'AI bilan to\'ldirish',
+            tripTitle: 'Tur nomi',
+            location: 'Manzil',
+            price: 'Narx (UZS)',
+            seats: 'O\'rindiqlar',
+            publish: 'Chop etish',
+            generating: 'Yaratilmoqda...',
+        },
+        profile: {
+            wallet: 'Hamyon balansi',
+            withdraw: 'Yechib olish',
+            settings: 'Sozlamalar',
+            theme: 'Mavzu',
+            language: 'Til',
+            guideMode: 'Gid rejimi',
+            travelerMode: 'Sayyoh rejimi',
+            verified: 'Tasdiqlangan gid',
+            completed: 'Turlar yakunlandi',
+        },
+        wallet: {
+            withdrawConfirm: "Barcha mablag'ni yechib olishga ishonchingiz komilmi?"
+        }
+    }
+};
