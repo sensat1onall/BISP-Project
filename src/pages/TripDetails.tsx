@@ -7,6 +7,7 @@ import { Trip, WeatherForecast } from '../types';
 import { formatCurrency } from '../utils/format';
 import { ArrowLeft, Clock, Mountain, Map as MapIcon, Calendar, Info, CloudSun, CheckCircle, AlertCircle, Star, Send, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const TripDetails = () => {
     const { id } = useParams();
@@ -191,13 +192,14 @@ export const TripDetails = () => {
                                 placeholder="Share your experience..."
                                 className="w-full bg-white dark:bg-slate-800 border border-amber-200 dark:border-slate-600 rounded-lg p-3 text-sm resize-none h-20 dark:text-white mb-3"
                             />
-                            <button
+                            <MetalButton
+                                variant="gold"
                                 onClick={handleSubmitRating}
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                className="w-full"
                             >
-                                <Send size={16} />
+                                <Send size={16} className="mr-2" />
                                 Submit Rating
-                            </button>
+                            </MetalButton>
                         </div>
                     )}
 
@@ -255,34 +257,29 @@ export const TripDetails = () => {
                     </div>
 
                     {isOrganizer ? (
-                        <button disabled className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold py-3.5 rounded-xl">
+                        <MetalButton variant="default" disabled className="flex-1">
                             {t.organizer}
-                        </button>
+                        </MetalButton>
                     ) : booking ? (
-                        <button disabled className="flex-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2">
-                            <CheckCircle size={20} />
+                        <MetalButton variant="success" disabled className="flex-1">
+                            <CheckCircle size={20} className="mr-2" />
                             Booked
-                        </button>
+                        </MetalButton>
                     ) : (
-                        <button
+                        <MetalButton
+                            variant={bookingStatus === 'success' ? "success" : bookingStatus === 'error' ? "error" : "primary"}
                             onClick={handleBook}
                             disabled={spotsLeft === 0 || (!hasFunds && bookingStatus !== 'success')}
-                            className={cn(
-                                "flex-1 font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2",
-                                bookingStatus === 'success' ? "bg-green-500 text-white" :
-                                    bookingStatus === 'error' ? "bg-red-500 text-white" :
-                                        !hasFunds ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed" :
-                                            "bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700"
-                            )}
+                            className="flex-1"
                         >
                             {bookingStatus === 'success' ? (
                                 <>
-                                    <CheckCircle size={20} />
+                                    <CheckCircle size={20} className="mr-2" />
                                     {t.booked}
                                 </>
                             ) : bookingStatus === 'error' ? (
                                 <>
-                                    <AlertCircle size={20} />
+                                    <AlertCircle size={20} className="mr-2" />
                                     {t.insufficientFunds}
                                 </>
                             ) : (
@@ -291,7 +288,7 @@ export const TripDetails = () => {
                                     {spotsLeft < 5 && <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md ml-1">{spotsLeft} left</span>}
                                 </>
                             )}
-                        </button>
+                        </MetalButton>
                     )}
                 </div>
             </div>

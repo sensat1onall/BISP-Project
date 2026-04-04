@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Trip } from '../types';
+import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const CreateTrip = () => {
     const { user, addTrip, language } = useApp();
@@ -452,14 +453,15 @@ export const CreateTrip = () => {
                     </div>
                 </div>
 
-                <div className="pt-4">
-                    <button
+                <div className="pt-4 flex justify-center">
+                    <MetalButton
+                        variant="success"
                         type="submit"
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        className="w-full"
                     >
-                        <Check size={20} />
+                        <Check size={20} className="mr-2" />
                         {t.publish}
-                    </button>
+                    </MetalButton>
                     {formData.price === 0 && (
                         <p className="text-center text-xs text-amber-500 mt-2">Warning: Price is set to 0 (Free)</p>
                     )}

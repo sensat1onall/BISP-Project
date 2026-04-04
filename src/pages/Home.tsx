@@ -4,6 +4,7 @@ import { TripCard } from '../components/TripCard';
 import { translations } from '../i18n/translations';
 import { Search, Bell, SlidersHorizontal, Map } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { LiquidButton } from '../components/ui/liquid-glass-button';
 
 export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
     const { user, trips, language } = useApp();
@@ -73,18 +74,24 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                 {/* Categories */}
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                     {categories.map(cat => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveCategory(cat.id)}
-                            className={cn(
-                                "px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all duration-300",
-                                activeCategory === cat.id
-                                    ? "bg-emerald-600 text-white shadow-emerald-500/30 shadow-lg scale-105"
-                                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50"
-                            )}
-                        >
-                            {cat.label}
-                        </button>
+                        activeCategory === cat.id ? (
+                            <LiquidButton
+                                key={cat.id}
+                                size="sm"
+                                onClick={() => setActiveCategory(cat.id)}
+                                className="rounded-full bg-emerald-600 text-white shadow-emerald-500/30 shadow-lg"
+                            >
+                                {cat.label}
+                            </LiquidButton>
+                        ) : (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className="px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all duration-300 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50"
+                            >
+                                {cat.label}
+                            </button>
+                        )
                     ))}
                 </div>
             </div>

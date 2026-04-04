@@ -7,6 +7,7 @@ import {
     Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck
 } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
     const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds } = useApp();
@@ -70,13 +71,14 @@ export const Profile = () => {
                     </div>
 
                     <div className="relative z-10 flex gap-3">
-                        <button
+                        <MetalButton
+                            variant="success"
                             onClick={handleWithdraw}
                             disabled={user.walletBalance === 0}
-                            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-1"
+                            className="flex-1"
                         >
                             {t.withdraw}
-                        </button>
+                        </MetalButton>
                     </div>
                 </div>
 
@@ -198,12 +200,15 @@ export const Profile = () => {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => setIsSettingsOpen(false)}
-                            className="w-full mt-8 bg-slate-900 dark:bg-slate-800 text-white py-3 rounded-xl font-medium hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
-                        >
-                            {commonT.confirm}
-                        </button>
+                        <div className="mt-8 flex justify-center">
+                            <MetalButton
+                                variant="primary"
+                                onClick={() => setIsSettingsOpen(false)}
+                                className="w-full"
+                            >
+                                {commonT.confirm}
+                            </MetalButton>
+                        </div>
                     </div>
                 </div>
             )}

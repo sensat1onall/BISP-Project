@@ -29,8 +29,9 @@ Then open the URL shown in the terminal (usually `http://localhost:5173`).
 
 ## Gemini API Key
 
-The API Key has been pre-configured in `.env`.
-Key: `AIzaSyADS9qsSd0GpdjAPS6MV9sH6K4Tlnxjbqo`
+1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Copy `.env.example` to `.env`
+3. Replace `your_api_key_here` with your actual key
 
 ## Features
 
