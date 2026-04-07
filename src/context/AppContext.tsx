@@ -2,12 +2,19 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
 import { authApi } from '../lib/api';
 
+export interface Notification {
+    id: string;
+    message: string;
+    read: boolean;
+    createdAt: string;
+}
+
 const MOCK_USER: User = {
     id: 'u1',
     name: 'Aziz Rakhimov',
     avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
     role: 'traveler',
-    walletBalance: 1250000, // 1.25M UZS
+    walletBalance: 1250000,
     walletEscrow: 0,
     isVerified: true,
     guideLevel: 4,
@@ -64,11 +71,10 @@ const MOCK_TRIPS: Trip[] = [
     }
 ];
 
-// Mock bookings for the current user
 const MOCK_BOOKINGS: Booking[] = [
     {
         id: 'b1',
-        travelerId: 'u1', // Current user booked this
+        travelerId: 'u1',
         tripId: 't1',
         bookedAt: '2024-04-01T10:00:00Z',
         status: 'completed',
@@ -85,6 +91,7 @@ interface AppContextType {
     logout: () => void;
     trips: Trip[];
     bookings: Booking[];
+    notifications: Notification[];
     language: Language;
     theme: Theme;
     setLanguage: (lang: Language) => void;
@@ -92,9 +99,14 @@ interface AppContextType {
     switchRole: () => void;
     bookTrip: (tripId: string) => boolean;
     addTrip: (trip: Trip) => void;
+    deleteTrip: (tripId: string) => boolean;
+    updateTrip: (tripId: string, updates: Partial<Trip>) => void;
+    updateUser: (updates: Partial<User>) => void;
     withdrawFunds: () => void;
     rateTrip: (tripId: string, rating: number, comment?: string) => boolean;
     getUserBookingForTrip: (tripId: string) => Booking | undefined;
+    markNotificationsRead: () => void;
+    addNotification: (message: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -105,10 +117,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS);
     const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
+    const [notifications, setNotifications] = useState<Notification[]>([
+        { id: 'n1', message: 'Welcome to BISP Travel! Start exploring trips.', read: false, createdAt: new Date().toISOString() },
+    ]);
     const [language, setLanguageState] = useState<Language>('en');
     const [theme, setThemeState] = useState<Theme>('system');
 
-    // Load persistence + check existing auth token
     useEffect(() => {
         const savedLang = localStorage.getItem('app-lang') as Language;
         const savedTheme = localStorage.getItem('app-theme') as Theme;
@@ -143,7 +157,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
     }, []);
 
-    // Theme effect
     useEffect(() => {
         const root = window.document.documentElement;
         const applyTheme = () => {
@@ -172,6 +185,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const setTheme = (t: Theme) => {
         setThemeState(t);
+    };
+
+    const addNotification = (message: string) => {
+        setNotifications(prev => [{
+            id: `n${Date.now()}`,
+            message,
+            read: false,
+            createdAt: new Date().toISOString(),
+        }, ...prev]);
+    };
+
+    const markNotificationsRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
@@ -235,23 +261,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }));
     };
 
+    const updateUser = (updates: Partial<User>) => {
+        setUser((prev: User) => ({ ...prev, ...updates }));
+    };
+
     const bookTrip = (tripId: string) => {
         const trip = trips.find(t => t.id === tripId);
         if (!trip) return false;
         if (user.walletBalance < trip.price) return false;
+        if (trip.bookedSeats >= trip.maxSeats) return false;
 
-        // Deduct
         setUser((prev: User) => ({
             ...prev,
             walletBalance: prev.walletBalance - trip.price
         }));
 
-        // Update Trip seats
         setTrips((prev: Trip[]) => prev.map(t =>
             t.id === tripId ? { ...t, bookedSeats: t.bookedSeats + 1 } : t
         ));
 
-        // Create booking
         const newBooking: Booking = {
             id: `b${Date.now()}`,
             travelerId: user.id,
@@ -261,24 +289,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             hasRated: false
         };
         setBookings(prev => [...prev, newBooking]);
+        addNotification(`You booked "${trip.title}" successfully!`);
 
         return true;
     };
 
     const addTrip = (trip: Trip) => {
         setTrips((prev: Trip[]) => [trip, ...prev]);
+        addNotification(`Trip "${trip.title}" published successfully!`);
+    };
+
+    const deleteTrip = (tripId: string): boolean => {
+        const trip = trips.find(t => t.id === tripId);
+        if (!trip || trip.guideId !== user.id) return false;
+        setTrips((prev: Trip[]) => prev.filter(t => t.id !== tripId));
+        addNotification(`Trip "${trip.title}" has been deleted.`);
+        return true;
+    };
+
+    const updateTrip = (tripId: string, updates: Partial<Trip>) => {
+        setTrips((prev: Trip[]) => prev.map(t =>
+            t.id === tripId ? { ...t, ...updates } : t
+        ));
     };
 
     const withdrawFunds = () => {
+        const amount = user.walletBalance;
         setUser((prev: User) => ({ ...prev, walletBalance: 0 }));
+        addNotification(`Withdrawal of ${amount} UZS processed.`);
     };
 
-    // Rate a trip (only for travelers who completed the trip)
     const rateTrip = (tripId: string, rating: number, comment?: string): boolean => {
         const booking = bookings.find(b => b.tripId === tripId && b.travelerId === user.id);
-        if (!booking || booking.status !== 'completed' || booking.hasRated) {
-            return false;
-        }
+        if (!booking || booking.status !== 'completed' || booking.hasRated) return false;
 
         const trip = trips.find(t => t.id === tripId);
         if (!trip) return false;
@@ -293,21 +336,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             createdAt: new Date().toISOString()
         };
 
-        // Update trip with new rating
         setTrips((prev: Trip[]) => prev.map(t => {
             if (t.id === tripId) {
                 const updatedRatings = [...(t.ratings || []), newRating];
                 const avgRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0) / updatedRatings.length;
-                return {
-                    ...t,
-                    ratings: updatedRatings,
-                    averageRating: Math.round(avgRating * 10) / 10
-                };
+                return { ...t, ratings: updatedRatings, averageRating: Math.round(avgRating * 10) / 10 };
             }
             return t;
         }));
 
-        // Mark booking as rated
         setBookings(prev => prev.map(b =>
             b.id === booking.id ? { ...b, hasRated: true } : b
         ));
@@ -329,6 +366,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             logout,
             trips,
             bookings,
+            notifications,
             language,
             theme,
             setLanguage,
@@ -336,9 +374,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             switchRole,
             bookTrip,
             addTrip,
+            deleteTrip,
+            updateTrip,
+            updateUser,
             withdrawFunds,
             rateTrip,
-            getUserBookingForTrip
+            getUserBookingForTrip,
+            markNotificationsRead,
+            addNotification,
         }}>
             {children}
         </AppContext.Provider>
