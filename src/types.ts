@@ -1,4 +1,4 @@
-export type Role = 'traveler' | 'guide';
+export type Role = 'traveler' | 'guide' | 'admin';
 export type Language = 'en' | 'ru' | 'uz';
 export type Theme = 'light' | 'dark' | 'system';
 
