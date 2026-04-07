@@ -1,77 +1,204 @@
-import React from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Compass, MessageCircle, User, Map, PlusCircle } from 'lucide-react';
+import { Compass, MessageCircle, User, Map, PlusCircle, LogOut, Bell, ChevronDown, Moon, Sun } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { cn } from '../lib/cn';
 
 export const Layout = () => {
-    const { user, language } = useApp();
+    const { user, language, logout, theme, setTheme, notifications, markNotificationsRead } = useApp();
     const location = useLocation();
     const navigate = useNavigate();
     const t = translations[language].nav;
 
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement>(null);
+    const notifRef = useRef<HTMLDivElement>(null);
+
     const isActive = (path: string) => location.pathname === path;
 
-    // Navigation Items Logic
-    const renderNavItems = () => {
-        const baseClass = "flex flex-col items-center justify-center p-2 w-full transition-colors duration-200";
-        const activeClass = "text-emerald-600 dark:text-emerald-500 scale-105";
-        const inactiveClass = "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200";
+    const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
-        const Item = ({ path, icon: Icon, label }: { path: string, icon: React.ElementType, label: string }) => (
-            <button
-                onClick={() => navigate(path)}
-                className={cn(baseClass, isActive(path) ? activeClass : inactiveClass)}
-            >
-                <Icon size={24} strokeWidth={isActive(path) ? 2.5 : 2} />
-                <span className="text-[10px] font-medium mt-1">{label}</span>
-            </button>
-        );
+    // Close dropdowns on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
-        if (user.role === 'traveler') {
-            return (
-                <>
-                    <Item path="/" icon={Compass} label={t.explore} />
-                    <Item path="/chat" icon={MessageCircle} label={t.chat} />
-                    <Item path="/my-trips" icon={Map} label={t.myTrips} />
-                    <Item path="/profile" icon={User} label={t.profile} />
-                </>
-            );
-        } else {
-            // Guide Role
-            return (
-                <>
-                    <Item path="/" icon={Compass} label={t.explore} />
-                    <Item path="/chat" icon={MessageCircle} label={t.chat} />
-                    {/* Floating Add Button */}
-                    <div className="relative -top-5">
-                        <button
-                            onClick={() => navigate('/create')}
-                            className="bg-emerald-600 text-white p-4 rounded-full shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-all active:scale-95"
-                        >
-                            <PlusCircle size={28} />
-                        </button>
-                    </div>
-                    <Item path="/profile" icon={User} label={t.profile} />
-                </>
-            );
-        }
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
+    const navLinks = [
+        { path: '/', icon: Compass, label: t.explore },
+        { path: '/my-trips', icon: Map, label: t.myTrips },
+        { path: '/chat', icon: MessageCircle, label: t.chat },
+    ];
+
     return (
-        <div className="flex flex-col h-screen w-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-            {/* Main Content Area - Scrollable */}
-            <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+            {/* Top Navbar */}
+            <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                    {/* Logo */}
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                        <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+                            <Compass size={18} className="text-white" />
+                        </div>
+                        <span className="text-lg font-bold dark:text-white hidden sm:block">
+                            BISP <span className="text-emerald-600">Travel</span>
+                        </span>
+                    </button>
+
+                    {/* Center Nav Links */}
+                    <nav className="flex items-center gap-1">
+                        {navLinks.map(link => (
+                            <button
+                                key={link.path}
+                                onClick={() => navigate(link.path)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                                    isActive(link.path)
+                                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                                )}
+                            >
+                                <link.icon size={18} />
+                                <span className="hidden md:inline">{link.label}</span>
+                            </button>
+                        ))}
+
+                        {/* Create Trip Button (guides only) */}
+                        {user.role === 'guide' && (
+                            <button
+                                onClick={() => navigate('/create')}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors ml-1"
+                            >
+                                <PlusCircle size={18} />
+                                <span className="hidden md:inline">{t.addTrip}</span>
+                            </button>
+                        )}
+                    </nav>
+
+                    {/* Right: Notifications + Theme + User Menu */}
+                    <div className="flex items-center gap-2">
+                        {/* Theme Toggle */}
+                        <button
+                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                        </button>
+
+                        {/* Notifications */}
+                        <div ref={notifRef} className="relative">
+                            <button
+                                onClick={() => {
+                                    setNotifOpen(!notifOpen);
+                                    if (!notifOpen && unreadCount > 0) markNotificationsRead?.();
+                                }}
+                                className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors relative"
+                            >
+                                <Bell size={18} />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {notifOpen && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50">
+                                    <div className="p-3 border-b border-slate-100 dark:border-slate-700">
+                                        <p className="text-sm font-semibold dark:text-white">Notifications</p>
+                                    </div>
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {notifications && notifications.length > 0 ? notifications.map(n => (
+                                            <div key={n.id} className={cn(
+                                                "px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 text-sm",
+                                                !n.read && "bg-emerald-50/50 dark:bg-emerald-900/10"
+                                            )}>
+                                                <p className="dark:text-white">{n.message}</p>
+                                                <p className="text-xs text-slate-400 mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
+                                            </div>
+                                        )) : (
+                                            <div className="p-6 text-center text-slate-400 text-sm">No notifications yet</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* User Menu */}
+                        <div ref={userMenuRef} className="relative">
+                            <button
+                                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <img
+                                    src={user.avatar}
+                                    alt={user.name}
+                                    className="w-8 h-8 rounded-full object-cover border-2 border-emerald-500"
+                                />
+                                <span className="text-sm font-medium dark:text-white hidden lg:block">{user.name}</span>
+                                <ChevronDown size={14} className="text-slate-400 hidden lg:block" />
+                            </button>
+
+                            {userMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50">
+                                    <div className="p-3 border-b border-slate-100 dark:border-slate-700">
+                                        <p className="text-sm font-semibold dark:text-white">{user.name}</p>
+                                        <p className="text-xs text-slate-400 capitalize">{user.role}</p>
+                                    </div>
+                                    <div className="p-1">
+                                        <button
+                                            onClick={() => { navigate('/profile'); setUserMenuOpen(false); }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                        >
+                                            <User size={16} />
+                                            {t.profile}
+                                        </button>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        >
+                                            <LogOut size={16} />
+                                            {translations[language].auth.logout}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="max-w-7xl mx-auto">
                 <Outlet />
             </main>
 
-            {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shadow-lg z-50 pb-safe">
-                <div className="flex justify-around items-center h-16 max-w-md mx-auto">
-                    {renderNavItems()}
+            {/* Footer */}
+            <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 mt-12">
+                <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-emerald-600 rounded flex items-center justify-center">
+                            <Compass size={14} className="text-white" />
+                        </div>
+                        <span className="text-sm font-semibold dark:text-white">BISP Travel</span>
+                    </div>
+                    <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} BISP Travel Marketplace. All rights reserved.</p>
                 </div>
-            </nav>
+            </footer>
         </div>
     );
 };
