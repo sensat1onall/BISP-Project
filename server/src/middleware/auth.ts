@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'bisp-dev-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'safargo-dev-secret-change-in-production';
 
 export interface AuthRequest extends Request {
     userId?: string;
