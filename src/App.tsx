@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import { Home } from './pages/Home';
 import { TripDetails } from './pages/TripDetails';
 import { CreateTrip } from './pages/CreateTrip';
@@ -9,6 +10,7 @@ import { Profile } from './pages/Profile';
 import { Chat } from './pages/Chat';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { NotFound } from './pages/NotFound';
 
 const router = createBrowserRouter([
@@ -19,6 +21,14 @@ const router = createBrowserRouter([
     {
         path: '/register',
         element: <Register />,
+    },
+    {
+        path: '/admin',
+        element: (
+            <AdminRoute>
+                <AdminDashboard />
+            </AdminRoute>
+        ),
     },
     {
         path: '/',
