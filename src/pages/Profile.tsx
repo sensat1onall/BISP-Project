@@ -5,18 +5,21 @@ import { formatCurrency } from '../utils/format';
 import { Theme, Language } from '../types';
 import {
     Settings, CreditCard, ChevronRight, LogOut, CheckCircle2,
-    Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck
+    Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck,
+    Edit3, X, Save
 } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout, updateUser } = useApp();
     const t = translations[language].profile;
     const commonT = translations[language].common;
     const walletT = translations[language].wallet;
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState(user.name);
 
     const handleWithdraw = () => {
         if (window.confirm(walletT.withdrawConfirm)) {
@@ -24,145 +27,159 @@ export const Profile = () => {
         }
     };
 
+    const handleSaveProfile = () => {
+        if (editName.trim()) {
+            updateUser({ name: editName.trim() });
+            setIsEditing(false);
+        }
+    };
+
+    const handleLogout = () => {
+        logout();
+    };
+
     return (
-        <div className="pb-20 bg-slate-50 dark:bg-slate-900 min-h-screen">
-            {/* Header / Cover */}
-            <div className="h-40 bg-gradient-to-r from-emerald-600 to-teal-500 relative">
-                <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-colors"
-                >
-                    <Settings size={20} />
-                </button>
-            </div>
+        <div className="py-8 px-6">
+            <div className="max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left: Profile Card */}
+                    <div className="space-y-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <div className="h-28 bg-gradient-to-r from-emerald-600 to-teal-500 relative" />
+                            <div className="px-6 pb-6 -mt-12">
+                                <div className="flex items-end justify-between mb-3">
+                                    <img
+                                        src={user.avatar}
+                                        alt={user.name}
+                                        className="w-20 h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md object-cover"
+                                    />
+                                    {user.isVerified && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 mb-1">
+                                            <ShieldCheck size={12} className="mr-1" />
+                                            {t.verified}
+                                        </span>
+                                    )}
+                                </div>
 
-            {/* Profile Info */}
-            <div className="px-4 -mt-12 relative z-10">
-                <div className="flex justify-between items-end mb-4">
-                    <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-900 shadow-md object-cover"
-                    />
-                    <div className="mb-1">
-                        {user.isVerified && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                                <ShieldCheck size={12} className="mr-1" />
-                                {t.verified}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <h1 className="text-2xl font-bold dark:text-white">{user.name}</h1>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                    {user.role === 'guide' ? 'Adventure Guide' : 'Travel Enthusiast'} • Member since {new Date(user.memberSince).getFullYear()}
-                </p>
-
-                {/* Wallet Card */}
-                <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl shadow-slate-900/20 mb-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-16 translate-x-16 group-hover:bg-emerald-500/20 transition-all duration-700"></div>
-
-                    <div className="relative z-10 flex justify-between items-start mb-8">
-                        <div>
-                            <p className="text-slate-400 text-sm font-medium mb-1">{t.wallet}</p>
-                            <h2 className="text-3xl font-bold tracking-tight">{formatCurrency(user.walletBalance)}</h2>
-                        </div>
-                        <CreditCard className="text-emerald-400" size={32} />
-                    </div>
-
-                    <div className="relative z-10 flex gap-3">
-                        <MetalButton
-                            variant="success"
-                            onClick={handleWithdraw}
-                            disabled={user.walletBalance === 0}
-                            className="flex-1"
-                        >
-                            {t.withdraw}
-                        </MetalButton>
-                    </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
-                            <CheckCircle2 size={18} />
-                            <span className="text-xs font-medium uppercase">{t.completed}</span>
-                        </div>
-                        <p className="text-2xl font-bold dark:text-white">{user.completedTrips}</p>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
-                            <Map size={18} />
-                            <span className="text-xs font-medium uppercase">Rating</span>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <p className="text-2xl font-bold dark:text-white">{user.rating}</p>
-                            <span className="text-sm text-slate-400">/ 5.0</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Menu Items */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700">
-                    <button
-                        onClick={switchRole}
-                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
-                                <LogOut size={20} />
+                                {isEditing ? (
+                                    <div className="space-y-3">
+                                        <input
+                                            type="text"
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-lg font-bold dark:text-white"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button onClick={handleSaveProfile} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm">
+                                                <Save size={14} /> Save
+                                            </button>
+                                            <button onClick={() => { setIsEditing(false); setEditName(user.name); }} className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-lg text-sm">
+                                                <X size={14} /> Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-xl font-bold dark:text-white">{user.name}</h1>
+                                        <button onClick={() => setIsEditing(true)} className="text-slate-400 hover:text-emerald-500 transition-colors">
+                                            <Edit3 size={14} />
+                                        </button>
+                                    </div>
+                                )}
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                                    {user.role === 'guide' ? 'Adventure Guide' : 'Travel Enthusiast'} &middot; Since {new Date(user.memberSince).getFullYear()}
+                                </p>
                             </div>
-                            <span className="font-medium dark:text-white">
-                                {user.role === 'guide' ? t.travelerMode : t.guideMode}
-                            </span>
                         </div>
-                        <ChevronRight size={18} className="text-slate-400" />
-                    </button>
 
-                    <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
-                                <Settings size={20} />
+                        {/* Stats */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
+                                    <CheckCircle2 size={16} />
+                                    <span className="text-xs font-medium uppercase">{t.completed}</span>
+                                </div>
+                                <p className="text-2xl font-bold dark:text-white">{user.completedTrips}</p>
                             </div>
-                            <span className="font-medium dark:text-white">{t.settings}</span>
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
+                                    <Map size={16} />
+                                    <span className="text-xs font-medium uppercase">Rating</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <p className="text-2xl font-bold dark:text-white">{user.rating}</p>
+                                    <span className="text-sm text-slate-400">/ 5.0</span>
+                                </div>
+                            </div>
                         </div>
-                        <ChevronRight size={18} className="text-slate-400" />
-                    </button>
+                    </div>
 
-                    <button
-                        onClick={logout}
-                        className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg">
-                                <LogOut size={20} />
+                    {/* Right: Wallet + Actions */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Wallet */}
+                        <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-16 translate-x-16" />
+                            <div className="relative z-10 flex justify-between items-start mb-6">
+                                <div>
+                                    <p className="text-slate-400 text-sm font-medium mb-1">{t.wallet}</p>
+                                    <h2 className="text-3xl font-bold tracking-tight">{formatCurrency(user.walletBalance)}</h2>
+                                </div>
+                                <CreditCard className="text-emerald-400" size={32} />
                             </div>
-                            <span className="font-medium text-red-600 dark:text-red-400">
-                                {translations[language].auth.logout}
-                            </span>
+                            <MetalButton variant="success" onClick={handleWithdraw} disabled={user.walletBalance === 0}>
+                                {t.withdraw}
+                            </MetalButton>
                         </div>
-                        <ChevronRight size={18} className="text-slate-400" />
-                    </button>
+
+                        {/* Menu */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <button
+                                onClick={switchRole}
+                                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
+                                        <LogOut size={18} />
+                                    </div>
+                                    <span className="font-medium dark:text-white text-sm">{user.role === 'guide' ? t.travelerMode : t.guideMode}</span>
+                                </div>
+                                <ChevronRight size={18} className="text-slate-400" />
+                            </button>
+
+                            <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
+                                        <Settings size={18} />
+                                    </div>
+                                    <span className="font-medium dark:text-white text-sm">{t.settings}</span>
+                                </div>
+                                <ChevronRight size={18} className="text-slate-400" />
+                            </button>
+
+                            <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg">
+                                        <LogOut size={18} />
+                                    </div>
+                                    <span className="font-medium text-red-600 dark:text-red-400 text-sm">{translations[language].auth.logout}</span>
+                                </div>
+                                <ChevronRight size={18} className="text-slate-400" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Settings Modal */}
             {isSettingsOpen && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl p-6 relative animate-in slide-in-from-bottom duration-300">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl p-6 relative">
                         <h2 className="text-xl font-bold mb-6 dark:text-white">{t.settings}</h2>
-                        <button
-                            onClick={() => setIsSettingsOpen(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                        >
-                            <span className="sr-only">Close</span>
-                            ✕
+                        <button onClick={() => setIsSettingsOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <X size={20} />
                         </button>
 
                         <div className="space-y-6">
-                            {/* Theme */}
                             <div>
                                 <label className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 block">{t.theme}</label>
                                 <div className="grid grid-cols-3 gap-2">
@@ -174,7 +191,7 @@ export const Profile = () => {
                                                 "flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
                                                 theme === tMode
                                                     ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
-                                                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
                                             )}
                                         >
                                             {tMode === 'light' && <Sun size={20} className="mb-1" />}
@@ -186,14 +203,13 @@ export const Profile = () => {
                                 </div>
                             </div>
 
-                            {/* Language */}
                             <div>
                                 <label className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 block">{t.language}</label>
                                 <div className="space-y-2">
                                     {[
                                         { code: 'en', name: 'English' },
                                         { code: 'ru', name: 'Русский' },
-                                        { code: 'uz', name: 'O\'zbekcha' }
+                                        { code: 'uz', name: "O'zbekcha" }
                                     ].map((lang) => (
                                         <button
                                             key={lang.code}
@@ -202,7 +218,7 @@ export const Profile = () => {
                                                 "w-full flex items-center justify-between p-3 rounded-xl border transition-all",
                                                 language === lang.code
                                                     ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
-                                                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
@@ -216,12 +232,8 @@ export const Profile = () => {
                             </div>
                         </div>
 
-                        <div className="mt-8 flex justify-center">
-                            <MetalButton
-                                variant="primary"
-                                onClick={() => setIsSettingsOpen(false)}
-                                className="w-full"
-                            >
+                        <div className="mt-8">
+                            <MetalButton variant="primary" onClick={() => setIsSettingsOpen(false)} className="w-full">
                                 {commonT.confirm}
                             </MetalButton>
                         </div>
