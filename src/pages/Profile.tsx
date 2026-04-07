@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { formatCurrency } from '../utils/format';
+import { Theme, Language } from '../types';
 import {
     Settings, CreditCard, ChevronRight, LogOut, CheckCircle2,
     Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck
@@ -153,7 +154,7 @@ export const Profile = () => {
                                     {['light', 'dark', 'system'].map((tMode) => (
                                         <button
                                             key={tMode}
-                                            onClick={() => setTheme(tMode as any)}
+                                            onClick={() => setTheme(tMode as Theme)}
                                             className={cn(
                                                 "flex flex-col items-center justify-center p-3 rounded-xl border transition-all",
                                                 theme === tMode
@@ -181,7 +182,7 @@ export const Profile = () => {
                                     ].map((lang) => (
                                         <button
                                             key={lang.code}
-                                            onClick={() => setLanguage(lang.code as any)}
+                                            onClick={() => setLanguage(lang.code as Language)}
                                             className={cn(
                                                 "w-full flex items-center justify-between p-3 rounded-xl border transition-all",
                                                 language === lang.code
