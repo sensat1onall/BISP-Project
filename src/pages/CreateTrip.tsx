@@ -137,7 +137,7 @@ export const CreateTrip = () => {
         const durationDays = calculateDuration();
 
         const newTrip: Trip = {
-            id: Date.now().toString(),
+            id: crypto.randomUUID(),
             guideId: user.id,
             title: formData.title,
             description: formData.description,
