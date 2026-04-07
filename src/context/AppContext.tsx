@@ -28,7 +28,8 @@ interface AppContextType {
     isAuthenticated: boolean;
     isAuthLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
-    register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }>;
+    signInWithGoogle: () => Promise<void>;
     logout: () => void;
     trips: Trip[];
     bookings: Booking[];
@@ -275,7 +276,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return { success: true, role: profile?.role };
     };
 
-    const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string; needsConfirmation?: boolean }> => {
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -284,12 +285,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (error) return { success: false, error: error.message };
         if (!data.user) return { success: false, error: 'Registration failed' };
 
-        // Wait briefly for the trigger to create the profile, then load it
+        // If email confirmation is enabled, the session will be null
+        if (!data.session) {
+            return { success: true, needsConfirmation: true };
+        }
+
+        // If auto-confirmed, load profile immediately
         await new Promise(resolve => setTimeout(resolve, 500));
         await loadProfile(data.user.id);
         setIsAuthenticated(true);
         addNotification('Welcome to SafarGo! Start exploring trips.');
         return { success: true };
+    };
+
+    const signInWithGoogle = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin,
+            },
+        });
     };
 
     const logout = async () => {
@@ -470,6 +485,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             isAuthLoading,
             login,
             register,
+            signInWithGoogle,
             logout,
             trips,
             bookings,
