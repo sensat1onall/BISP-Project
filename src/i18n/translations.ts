@@ -63,6 +63,26 @@ export const translations: Record<Language, any> = {
         },
         wallet: {
             withdrawConfirm: "Are you sure you want to withdraw all funds?"
+        },
+        auth: {
+            login: 'Sign In',
+            register: 'Sign Up',
+            email: 'Email',
+            password: 'Password',
+            confirmPassword: 'Confirm Password',
+            name: 'Full Name',
+            noAccount: "Don't have an account?",
+            hasAccount: 'Already have an account?',
+            welcome: 'Welcome Back',
+            welcomeSub: 'Sign in to continue your adventure',
+            joinUs: 'Join Us',
+            joinUsSub: 'Create an account to start exploring',
+            passwordMismatch: 'Passwords do not match',
+            passwordTooShort: 'Password must be at least 6 characters',
+            loginFailed: 'Invalid email or password',
+            registerFailed: 'Registration failed. Try again.',
+            orContinue: 'or continue with',
+            logout: 'Log Out',
         }
     },
     ru: {
@@ -127,6 +147,26 @@ export const translations: Record<Language, any> = {
         },
         wallet: {
             withdrawConfirm: "Вы уверены, что хотите вывести все средства?"
+        },
+        auth: {
+            login: 'Войти',
+            register: 'Регистрация',
+            email: 'Электронная почта',
+            password: 'Пароль',
+            confirmPassword: 'Подтвердите пароль',
+            name: 'Полное имя',
+            noAccount: 'Нет аккаунта?',
+            hasAccount: 'Уже есть аккаунт?',
+            welcome: 'С возвращением',
+            welcomeSub: 'Войдите, чтобы продолжить приключение',
+            joinUs: 'Присоединяйтесь',
+            joinUsSub: 'Создайте аккаунт и начните путешествовать',
+            passwordMismatch: 'Пароли не совпадают',
+            passwordTooShort: 'Пароль должен быть не менее 6 символов',
+            loginFailed: 'Неверный email или пароль',
+            registerFailed: 'Ошибка регистрации. Попробуйте снова.',
+            orContinue: 'или продолжить через',
+            logout: 'Выйти',
         }
     },
     uz: {
@@ -191,6 +231,26 @@ export const translations: Record<Language, any> = {
         },
         wallet: {
             withdrawConfirm: "Barcha mablag'ni yechib olishga ishonchingiz komilmi?"
+        },
+        auth: {
+            login: 'Kirish',
+            register: 'Ro\'yxatdan o\'tish',
+            email: 'Elektron pochta',
+            password: 'Parol',
+            confirmPassword: 'Parolni tasdiqlang',
+            name: 'To\'liq ism',
+            noAccount: 'Hisobingiz yo\'qmi?',
+            hasAccount: 'Hisobingiz bormi?',
+            welcome: 'Xush kelibsiz',
+            welcomeSub: 'Sarguzashtingizni davom ettirish uchun kiring',
+            joinUs: 'Bizga qo\'shiling',
+            joinUsSub: 'Hisob yarating va sayohatni boshlang',
+            passwordMismatch: 'Parollar mos kelmaydi',
+            passwordTooShort: 'Parol kamida 6 belgidan iborat bo\'lishi kerak',
+            loginFailed: 'Noto\'g\'ri email yoki parol',
+            registerFailed: 'Ro\'yxatdan o\'tish xatosi. Qaytadan urinib ko\'ring.',
+            orContinue: 'yoki davom eting',
+            logout: 'Chiqish',
         }
     }
 };
