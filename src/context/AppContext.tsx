@@ -118,7 +118,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS);
     const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
     const [notifications, setNotifications] = useState<Notification[]>([
-        { id: 'n1', message: 'Welcome to BISP Travel! Start exploring trips.', read: false, createdAt: new Date().toISOString() },
+        { id: 'n1', message: 'Welcome to SafarGo! Start exploring trips.', read: false, createdAt: new Date().toISOString() },
     ]);
     const [language, setLanguageState] = useState<Language>('en');
     const [theme, setThemeState] = useState<Theme>('system');
@@ -129,7 +129,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (savedLang) setLanguageState(savedLang);
         if (savedTheme) setThemeState(savedTheme);
 
-        const token = localStorage.getItem('bisp_token');
+        const token = localStorage.getItem('safargo_token');
         if (token) {
             authApi.getProfile()
                 .then(({ user: profileUser }) => {
@@ -149,7 +149,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setIsAuthenticated(true);
                 })
                 .catch(() => {
-                    localStorage.removeItem('bisp_token');
+                    localStorage.removeItem('safargo_token');
                 })
                 .finally(() => setIsAuthLoading(false));
         } else {
@@ -203,7 +203,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
         try {
             const { token, user: authUser } = await authApi.login(email, password);
-            localStorage.setItem('bisp_token', token);
+            localStorage.setItem('safargo_token', token);
             setUser({
                 id: authUser.id,
                 name: authUser.name,
@@ -227,7 +227,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
         try {
             const { token, user: authUser } = await authApi.register(name, email, password);
-            localStorage.setItem('bisp_token', token);
+            localStorage.setItem('safargo_token', token);
             setUser({
                 id: authUser.id,
                 name: authUser.name,
@@ -249,7 +249,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const logout = () => {
-        localStorage.removeItem('bisp_token');
+        localStorage.removeItem('safargo_token');
         setIsAuthenticated(false);
         setUser(MOCK_USER);
     };
