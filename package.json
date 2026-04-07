@@ -1,11 +1,12 @@
 {
     "name": "safargo",
     "private": true,
-    "version": "0.0.0",
+    "version": "1.0.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc -b && vite build",
+        "build": "tsc -b && vite build && cd server && npm install && npm run build",
+        "start": "node server/dist/index.js",
         "lint": "eslint .",
         "preview": "vite preview"
     },
@@ -35,9 +36,7 @@
         "typescript": "^5.2.2",
         "vite": "^5.2.0"
     },
-    "description": "This project is a React 19 + Vite application built with Tailwind CSS.",
-    "main": "tailwind.config.js",
-    "keywords": [],
-    "author": "",
-    "license": "ISC"
+    "engines": {
+        "node": ">=18"
+    }
 }
