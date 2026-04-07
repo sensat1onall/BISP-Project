@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TripCard } from '../components/TripCard';
 import { translations } from '../i18n/translations';
 import { Search, Bell, SlidersHorizontal, Map } from 'lucide-react';
-import { cn } from '../lib/cn';
 import { LiquidButton } from '../components/ui/liquid-glass-button';
 
 export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
