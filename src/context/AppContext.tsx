@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
 
 const MOCK_USER: User = {
@@ -34,8 +34,8 @@ const MOCK_TRIPS: Trip[] = [
         distanceKm: 12.5,
         altitudeGainM: 850,
         ratings: [
-            { id: 'r1', oderId: 'u3', odorId: 'u2', tripId: 't1', rating: 5, comment: 'Amazing experience!', createdAt: '2024-04-15T10:00:00Z' },
-            { id: 'r2', oderId: 'u4', odorId: 'u2', tripId: 't1', rating: 4, comment: 'Great guide, beautiful views', createdAt: '2024-04-10T14:00:00Z' }
+            { id: 'r1', raterId: 'u3', guideId: 'u2', tripId: 't1', rating: 5, comment: 'Amazing experience!', createdAt: '2024-04-15T10:00:00Z' },
+            { id: 'r2', raterId: 'u4', guideId: 'u2', tripId: 't1', rating: 4, comment: 'Great guide, beautiful views', createdAt: '2024-04-10T14:00:00Z' }
         ],
         averageRating: 4.5
     },
@@ -57,7 +57,7 @@ const MOCK_TRIPS: Trip[] = [
         distanceKm: 5,
         altitudeGainM: 0,
         ratings: [
-            { id: 'r3', oderId: 'u5', odorId: 'u3', tripId: 't2', rating: 5, comment: 'Best tour ever!', createdAt: '2024-04-20T12:00:00Z' }
+            { id: 'r3', raterId: 'u5', guideId: 'u3', tripId: 't2', rating: 5, comment: 'Best tour ever!', createdAt: '2024-04-20T12:00:00Z' }
         ],
         averageRating: 5.0
     }
@@ -67,7 +67,7 @@ const MOCK_TRIPS: Trip[] = [
 const MOCK_BOOKINGS: Booking[] = [
     {
         id: 'b1',
-        oderId: 'u1', // Current user booked this
+        travelerId: 'u1', // Current user booked this
         tripId: 't1',
         bookedAt: '2024-04-01T10:00:00Z',
         status: 'completed',
@@ -111,15 +111,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Theme effect
     useEffect(() => {
         const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
+        const applyTheme = () => {
+            root.classList.remove('light', 'dark');
+            if (theme === 'system') {
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                root.classList.add(systemTheme);
+            } else {
+                root.classList.add(theme);
+            }
+        };
 
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            root.classList.add(systemTheme);
-        } else {
-            root.classList.add(theme);
-        }
+        applyTheme();
         localStorage.setItem('app-theme', theme);
+
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = () => { if (theme === 'system') applyTheme(); };
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
     }, [theme]);
 
     const setLanguage = (lang: Language) => {
@@ -157,7 +165,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // Create booking
         const newBooking: Booking = {
             id: `b${Date.now()}`,
-            oderId: user.id,
+            travelerId: user.id,
             tripId: tripId,
             bookedAt: new Date().toISOString(),
             status: 'confirmed',
@@ -178,7 +186,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Rate a trip (only for travelers who completed the trip)
     const rateTrip = (tripId: string, rating: number, comment?: string): boolean => {
-        const booking = bookings.find(b => b.tripId === tripId && b.oderId === user.id);
+        const booking = bookings.find(b => b.tripId === tripId && b.travelerId === user.id);
         if (!booking || booking.status !== 'completed' || booking.hasRated) {
             return false;
         }
@@ -188,8 +196,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const newRating: TripRating = {
             id: `r${Date.now()}`,
-            oderId: user.id,
-            odorId: trip.guideId,
+            raterId: user.id,
+            guideId: trip.guideId,
             tripId: tripId,
             rating: rating,
             comment: comment,
@@ -219,7 +227,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const getUserBookingForTrip = (tripId: string): Booking | undefined => {
-        return bookings.find(b => b.tripId === tripId && b.oderId === user.id);
+        return bookings.find(b => b.tripId === tripId && b.travelerId === user.id);
     };
 
     return (
