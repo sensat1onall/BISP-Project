@@ -80,7 +80,7 @@ interface AppContextType {
     user: User;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
     register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     trips: Trip[];
@@ -174,7 +174,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setThemeState(t);
     };
 
-    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
         try {
             const { token, user: authUser } = await authApi.login(email, password);
             localStorage.setItem('bisp_token', token);
@@ -192,7 +192,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 memberSince: authUser.memberSince,
             });
             setIsAuthenticated(true);
-            return { success: true };
+            return { success: true, role: authUser.role };
         } catch (err) {
             return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
         }
