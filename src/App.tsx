@@ -1,4 +1,3 @@
-import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
