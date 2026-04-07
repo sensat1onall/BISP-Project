@@ -18,8 +18,8 @@ export interface User {
 
 export interface TripRating {
     id: string;
-    oderId: string;     // User who rated
-    odorId: string;     // User being rated (guide)
+    raterId: string;    // User who rated
+    guideId: string;    // User being rated (guide)
     tripId: string;
     rating: number;     // 1-5 stars
     comment?: string;
@@ -28,7 +28,7 @@ export interface TripRating {
 
 export interface Booking {
     id: string;
-    oderId: string;     // Traveler who booked
+    travelerId: string; // Traveler who booked
     tripId: string;
     bookedAt: string;
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
