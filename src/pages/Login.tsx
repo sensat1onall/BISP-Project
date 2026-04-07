@@ -5,7 +5,7 @@ import { translations } from '../i18n/translations';
 import { SignInPage } from '../components/ui/sign-in';
 
 export const Login = () => {
-    const { login, language } = useApp();
+    const { login, language, theme, setTheme } = useApp();
     const navigate = useNavigate();
     const t = translations[language].auth;
 
@@ -46,6 +46,8 @@ export const Login = () => {
                 onGoogleSignIn={() => {}}
                 onResetPassword={() => {}}
                 onCreateAccount={() => navigate('/register')}
+                onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                isDark={theme === 'dark'}
                 error={error}
                 isLoading={isLoading}
                 submitLabel={t.login}
