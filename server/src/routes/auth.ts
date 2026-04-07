@@ -5,13 +5,13 @@ import { generateToken, authMiddleware, AuthRequest } from '../middleware/auth.j
 const router = Router();
 
 // In-memory user store (replace with database in production)
-interface StoredUser {
+export interface StoredUser {
     id: string;
     name: string;
     email: string;
     passwordHash: string;
     avatar: string;
-    role: 'traveler' | 'guide';
+    role: 'traveler' | 'guide' | 'admin';
     walletBalance: number;
     walletEscrow: number;
     isVerified: boolean;
@@ -21,12 +21,27 @@ interface StoredUser {
     memberSince: string;
 }
 
-const users: StoredUser[] = [
+export const users: StoredUser[] = [
+    {
+        id: 'admin',
+        name: 'Admin',
+        email: 'admin',
+        passwordHash: '$2a$10$Fuc0hO8PHo2m/hIUBDmPB.Zo3hcyD4LUQsKKdtGwQ5z1wkDSlllsy', // admin123
+        avatar: 'https://ui-avatars.com/api/?name=Admin&background=ef4444&color=fff',
+        role: 'admin',
+        walletBalance: 0,
+        walletEscrow: 0,
+        isVerified: true,
+        guideLevel: 0,
+        completedTrips: 0,
+        rating: 0,
+        memberSince: '2023-01-01',
+    },
     {
         id: 'u1',
         name: 'Aziz Rakhimov',
         email: 'aziz@example.com',
-        passwordHash: '$2a$10$XQxBj3GhKN8SQxHlTz3JhO5v8wZ5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5', // will be replaced on register
+        passwordHash: '$2a$10$XQxBj3GhKN8SQxHlTz3JhO5v8wZ5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5',
         avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
         role: 'traveler',
         walletBalance: 1250000,
@@ -67,7 +82,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         passwordHash,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`,
         role: 'traveler',
-        walletBalance: 500000, // Starting bonus
+        walletBalance: 500000,
         walletEscrow: 0,
         isVerified: false,
         guideLevel: 0,
