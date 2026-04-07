@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const token = localStorage.getItem('bisp_token');
+    const token = localStorage.getItem('safargo_token');
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
