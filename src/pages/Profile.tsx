@@ -11,7 +11,7 @@ import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout } = useApp();
     const t = translations[language].profile;
     const commonT = translations[language].common;
     const walletT = translations[language].wallet;
@@ -121,12 +121,27 @@ export const Profile = () => {
                         <ChevronRight size={18} className="text-slate-400" />
                     </button>
 
-                    <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
                                 <Settings size={20} />
                             </div>
                             <span className="font-medium dark:text-white">{t.settings}</span>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-400" />
+                    </button>
+
+                    <button
+                        onClick={logout}
+                        className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg">
+                                <LogOut size={20} />
+                            </div>
+                            <span className="font-medium text-red-600 dark:text-red-400">
+                                {translations[language].auth.logout}
+                            </span>
                         </div>
                         <ChevronRight size={18} className="text-slate-400" />
                     </button>
