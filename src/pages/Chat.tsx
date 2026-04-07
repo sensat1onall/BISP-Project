@@ -1,4 +1,3 @@
-import React from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { Search, MoreVertical, CheckCheck } from 'lucide-react';
