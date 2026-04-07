@@ -2,28 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
-import { SignInPage, Testimonial } from '../components/ui/sign-in';
-
-const testimonials: Testimonial[] = [
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/men/75.jpg',
-        name: 'Jamshid T.',
-        handle: '@jamshid_guide',
-        text: 'Started as a traveler, now I\'m a verified guide earning through the platform. Life-changing!',
-    },
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/women/32.jpg',
-        name: 'Dildora M.',
-        handle: '@dildora_hikes',
-        text: 'The community here is incredible. Met amazing people on every trip I booked.',
-    },
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/men/22.jpg',
-        name: 'Sardor B.',
-        handle: '@sardor_camp',
-        text: 'Best camping trips in Uzbekistan, all organized through this app. 5 stars!',
-    },
-];
+import { SignInPage } from '../components/ui/sign-in';
 
 export const Register = () => {
     const { register, language } = useApp();
@@ -74,8 +53,7 @@ export const Register = () => {
                     </span>
                 }
                 description={t.joinUsSub}
-                heroImageSrc="https://images.unsplash.com/photo-1682687982501-1e58ab814717?w=2160&q=80"
-                testimonials={testimonials}
+                heroImageSrc="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=2160&q=80"
                 onSignIn={handleSignUp}
                 onGoogleSignIn={() => {}}
                 onGoToSignIn={() => navigate('/login')}
