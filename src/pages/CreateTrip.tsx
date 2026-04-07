@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
-import { generateTripContent, getWeatherWithRecommendations } from '../lib/gemini';
+import { generateTripContent, getWeatherWithRecommendations, WeatherWithRecommendations } from '../lib/gemini';
 import {
     Sparkles, MapPin, DollarSign, Users, Mountain, ArrowLeft, Loader2,
     Calendar, Ruler, ImagePlus, X, CloudSun, AlertTriangle, Check
@@ -14,12 +14,11 @@ export const CreateTrip = () => {
     const { user, addTrip, language } = useApp();
     const navigate = useNavigate();
     const t = translations[language].create;
-    const commonT = translations[language].common;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLoadingWeather, setIsLoadingWeather] = useState(false);
-    const [weatherData, setWeatherData] = useState<any>(null);
+    const [weatherData, setWeatherData] = useState<WeatherWithRecommendations | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         location: '',
@@ -126,7 +125,7 @@ export const CreateTrip = () => {
             const start = new Date(formData.startDate);
             const end = new Date(formData.endDate);
             const diffTime = Math.abs(end.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             return Math.max(1, diffDays);
         }
         return 1;
@@ -285,7 +284,7 @@ export const CreateTrip = () => {
                             </div>
                             {weatherData.forecast && weatherData.forecast.length > 0 && (
                                 <div className="flex gap-2 overflow-x-auto pb-2">
-                                    {weatherData.forecast.map((day: any, idx: number) => (
+                                    {weatherData.forecast.map((day, idx) => (
                                         <div key={idx} className="flex-shrink-0 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 text-center">
                                             <p className="text-xs text-slate-500">{day.date}</p>
                                             <p className="font-semibold dark:text-white">{day.temp}°</p>
