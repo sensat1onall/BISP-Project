@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
+import { authApi } from '../lib/api';
 
 const MOCK_USER: User = {
     id: 'u1',
@@ -77,6 +78,11 @@ const MOCK_BOOKINGS: Booking[] = [
 
 interface AppContextType {
     user: User;
+    isAuthenticated: boolean;
+    isAuthLoading: boolean;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => void;
     trips: Trip[];
     bookings: Booking[];
     language: Language;
@@ -95,17 +101,46 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User>(MOCK_USER);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS);
     const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
     const [language, setLanguageState] = useState<Language>('en');
     const [theme, setThemeState] = useState<Theme>('system');
 
-    // Load persistence
+    // Load persistence + check existing auth token
     useEffect(() => {
         const savedLang = localStorage.getItem('app-lang') as Language;
         const savedTheme = localStorage.getItem('app-theme') as Theme;
         if (savedLang) setLanguageState(savedLang);
         if (savedTheme) setThemeState(savedTheme);
+
+        const token = localStorage.getItem('bisp_token');
+        if (token) {
+            authApi.getProfile()
+                .then(({ user: profileUser }) => {
+                    setUser({
+                        id: profileUser.id,
+                        name: profileUser.name,
+                        avatar: profileUser.avatar,
+                        role: profileUser.role,
+                        walletBalance: profileUser.walletBalance,
+                        walletEscrow: profileUser.walletEscrow,
+                        isVerified: profileUser.isVerified,
+                        guideLevel: profileUser.guideLevel,
+                        completedTrips: profileUser.completedTrips,
+                        rating: profileUser.rating,
+                        memberSince: profileUser.memberSince,
+                    });
+                    setIsAuthenticated(true);
+                })
+                .catch(() => {
+                    localStorage.removeItem('bisp_token');
+                })
+                .finally(() => setIsAuthLoading(false));
+        } else {
+            setIsAuthLoading(false);
+        }
     }, []);
 
     // Theme effect
@@ -137,6 +172,60 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const setTheme = (t: Theme) => {
         setThemeState(t);
+    };
+
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { token, user: authUser } = await authApi.login(email, password);
+            localStorage.setItem('bisp_token', token);
+            setUser({
+                id: authUser.id,
+                name: authUser.name,
+                avatar: authUser.avatar,
+                role: authUser.role,
+                walletBalance: authUser.walletBalance,
+                walletEscrow: authUser.walletEscrow,
+                isVerified: authUser.isVerified,
+                guideLevel: authUser.guideLevel,
+                completedTrips: authUser.completedTrips,
+                rating: authUser.rating,
+                memberSince: authUser.memberSince,
+            });
+            setIsAuthenticated(true);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
+        }
+    };
+
+    const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { token, user: authUser } = await authApi.register(name, email, password);
+            localStorage.setItem('bisp_token', token);
+            setUser({
+                id: authUser.id,
+                name: authUser.name,
+                avatar: authUser.avatar,
+                role: authUser.role,
+                walletBalance: authUser.walletBalance,
+                walletEscrow: authUser.walletEscrow,
+                isVerified: authUser.isVerified,
+                guideLevel: authUser.guideLevel,
+                completedTrips: authUser.completedTrips,
+                rating: authUser.rating,
+                memberSince: authUser.memberSince,
+            });
+            setIsAuthenticated(true);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : 'Registration failed' };
+        }
+    };
+
+    const logout = () => {
+        localStorage.removeItem('bisp_token');
+        setIsAuthenticated(false);
+        setUser(MOCK_USER);
     };
 
     const switchRole = () => {
@@ -233,6 +322,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return (
         <AppContext.Provider value={{
             user,
+            isAuthenticated,
+            isAuthLoading,
+            login,
+            register,
+            logout,
             trips,
             bookings,
             language,
