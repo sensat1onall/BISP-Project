@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
-import { authApi } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 export interface Notification {
     id: string;
@@ -9,78 +9,19 @@ export interface Notification {
     createdAt: string;
 }
 
-const MOCK_USER: User = {
-    id: 'u1',
-    name: 'Aziz Rakhimov',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+const DEFAULT_USER: User = {
+    id: '',
+    name: '',
+    avatar: '',
     role: 'traveler',
-    walletBalance: 1250000,
+    walletBalance: 0,
     walletEscrow: 0,
-    isVerified: true,
-    guideLevel: 4,
-    completedTrips: 12,
-    rating: 4.8,
-    memberSince: '2023-01-15'
+    isVerified: false,
+    guideLevel: 0,
+    completedTrips: 0,
+    rating: 0,
+    memberSince: '',
 };
-
-const MOCK_TRIPS: Trip[] = [
-    {
-        id: 't1',
-        guideId: 'u2',
-        title: 'Chimgan Mountains Hiking',
-        description: 'A beautiful hike through the Greater Chimgan peak. Experience breathtaking views and fresh mountain air.',
-        location: 'Chimgan, Tashkent Region',
-        price: 450000,
-        maxSeats: 8,
-        bookedSeats: 3,
-        startDate: '2024-05-12T08:00:00Z',
-        endDate: '2024-05-12T18:00:00Z',
-        durationDays: 1,
-        difficulty: 'moderate',
-        category: 'hiking',
-        images: ['https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop'],
-        distanceKm: 12.5,
-        altitudeGainM: 850,
-        ratings: [
-            { id: 'r1', raterId: 'u3', guideId: 'u2', tripId: 't1', rating: 5, comment: 'Amazing experience!', createdAt: '2024-04-15T10:00:00Z' },
-            { id: 'r2', raterId: 'u4', guideId: 'u2', tripId: 't1', rating: 4, comment: 'Great guide, beautiful views', createdAt: '2024-04-10T14:00:00Z' }
-        ],
-        averageRating: 4.5
-    },
-    {
-        id: 't2',
-        guideId: 'u3',
-        title: 'Samarkand Golden History',
-        description: 'Explore the ancient city of Samarkand, the jewel of the Silk Road. Visit Registan Square and Gur-e-Amir.',
-        location: 'Samarkand',
-        price: 900000,
-        maxSeats: 15,
-        bookedSeats: 12,
-        startDate: '2024-05-20T09:00:00Z',
-        endDate: '2024-05-21T18:00:00Z',
-        durationDays: 2,
-        difficulty: 'easy',
-        category: 'sightseeing',
-        images: ['https://images.unsplash.com/photo-1548013146-72479768bada?w=800&auto=format&fit=crop'],
-        distanceKm: 5,
-        altitudeGainM: 0,
-        ratings: [
-            { id: 'r3', raterId: 'u5', guideId: 'u3', tripId: 't2', rating: 5, comment: 'Best tour ever!', createdAt: '2024-04-20T12:00:00Z' }
-        ],
-        averageRating: 5.0
-    }
-];
-
-const MOCK_BOOKINGS: Booking[] = [
-    {
-        id: 'b1',
-        travelerId: 'u1',
-        tripId: 't1',
-        bookedAt: '2024-04-01T10:00:00Z',
-        status: 'completed',
-        hasRated: false
-    }
-];
 
 interface AppContextType {
     user: User;
@@ -107,21 +48,127 @@ interface AppContextType {
     getUserBookingForTrip: (tripId: string) => Booking | undefined;
     markNotificationsRead: () => void;
     addNotification: (message: string) => void;
+    refreshTrips: () => Promise<void>;
+    refreshBookings: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper: map Supabase profile row to User
+function mapProfile(row: Record<string, unknown>): User {
+    return {
+        id: row.id as string,
+        name: row.name as string,
+        avatar: row.avatar as string || '',
+        role: (row.role as User['role']) || 'traveler',
+        walletBalance: Number(row.wallet_balance) || 0,
+        walletEscrow: Number(row.wallet_escrow) || 0,
+        isVerified: row.is_verified as boolean || false,
+        guideLevel: Number(row.guide_level) || 0,
+        completedTrips: Number(row.completed_trips) || 0,
+        rating: Number(row.rating) || 0,
+        memberSince: row.member_since as string || '',
+    };
+}
+
+// Helper: map Supabase trip row to Trip
+function mapTrip(row: Record<string, unknown>): Trip {
+    return {
+        id: row.id as string,
+        guideId: row.guide_id as string,
+        title: row.title as string,
+        description: row.description as string || '',
+        location: row.location as string,
+        price: Number(row.price) || 0,
+        maxSeats: Number(row.max_seats) || 1,
+        bookedSeats: Number(row.booked_seats) || 0,
+        startDate: row.start_date as string || '',
+        endDate: row.end_date as string || undefined,
+        durationDays: Number(row.duration_days) || 1,
+        difficulty: (row.difficulty as Trip['difficulty']) || 'moderate',
+        category: (row.category as Trip['category']) || 'hiking',
+        images: (row.images as string[]) || [],
+        distanceKm: Number(row.distance_km) || 0,
+        altitudeGainM: Number(row.altitude_gain_m) || 0,
+        averageRating: row.average_rating ? Number(row.average_rating) : undefined,
+        aiRecommendations: row.ai_recommendations as string || undefined,
+        ratings: [],
+    };
+}
+
+// Helper: map Supabase booking row to Booking
+function mapBooking(row: Record<string, unknown>): Booking {
+    return {
+        id: row.id as string,
+        travelerId: row.traveler_id as string,
+        tripId: row.trip_id as string,
+        bookedAt: row.booked_at as string,
+        status: (row.status as Booking['status']) || 'confirmed',
+        hasRated: row.has_rated as boolean || false,
+    };
+}
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<User>(MOCK_USER);
+    const [user, setUser] = useState<User>(DEFAULT_USER);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
-    const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS);
-    const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
-    const [notifications, setNotifications] = useState<Notification[]>([
-        { id: 'n1', message: 'Welcome to SafarGo! Start exploring trips.', read: false, createdAt: new Date().toISOString() },
-    ]);
+    const [trips, setTrips] = useState<Trip[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [language, setLanguageState] = useState<Language>('en');
     const [theme, setThemeState] = useState<Theme>('system');
+
+    // --- Data loading ---
+
+    const loadProfile = useCallback(async (userId: string) => {
+        const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (data) {
+            const profile = mapProfile(data);
+            setUser(profile);
+            return profile;
+        }
+        return null;
+    }, []);
+
+    const refreshTrips = useCallback(async () => {
+        const { data: tripRows } = await supabase.from('trips').select('*').order('created_at', { ascending: false });
+        if (!tripRows) return;
+
+        // Load ratings for each trip
+        const { data: allRatings } = await supabase.from('ratings').select('*');
+
+        const mappedTrips = tripRows.map(row => {
+            const trip = mapTrip(row);
+            if (allRatings) {
+                trip.ratings = allRatings
+                    .filter(r => r.trip_id === trip.id)
+                    .map(r => ({
+                        id: r.id,
+                        raterId: r.rater_id,
+                        guideId: r.guide_id,
+                        tripId: r.trip_id,
+                        rating: r.rating,
+                        comment: r.comment || undefined,
+                        createdAt: r.created_at,
+                    }));
+                if (trip.ratings.length > 0) {
+                    const avg = trip.ratings.reduce((sum, r) => sum + r.rating, 0) / trip.ratings.length;
+                    trip.averageRating = Math.round(avg * 10) / 10;
+                }
+            }
+            return trip;
+        });
+
+        setTrips(mappedTrips);
+    }, []);
+
+    const refreshBookings = useCallback(async () => {
+        if (!user.id) return;
+        const { data } = await supabase.from('bookings').select('*').eq('traveler_id', user.id);
+        if (data) setBookings(data.map(mapBooking));
+    }, [user.id]);
+
+    // --- Auth init ---
 
     useEffect(() => {
         const savedLang = localStorage.getItem('app-lang') as Language;
@@ -129,33 +176,51 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (savedLang) setLanguageState(savedLang);
         if (savedTheme) setThemeState(savedTheme);
 
-        const token = localStorage.getItem('safargo_token');
-        if (token) {
-            authApi.getProfile()
-                .then(({ user: profileUser }) => {
-                    setUser({
-                        id: profileUser.id,
-                        name: profileUser.name,
-                        avatar: profileUser.avatar,
-                        role: profileUser.role,
-                        walletBalance: profileUser.walletBalance,
-                        walletEscrow: profileUser.walletEscrow,
-                        isVerified: profileUser.isVerified,
-                        guideLevel: profileUser.guideLevel,
-                        completedTrips: profileUser.completedTrips,
-                        rating: profileUser.rating,
-                        memberSince: profileUser.memberSince,
-                    });
+        // Check current Supabase session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                loadProfile(session.user.id).then((profile) => {
                     setIsAuthenticated(true);
-                })
-                .catch(() => {
-                    localStorage.removeItem('safargo_token');
-                })
-                .finally(() => setIsAuthLoading(false));
-        } else {
-            setIsAuthLoading(false);
-        }
-    }, []);
+                    setIsAuthLoading(false);
+                    if (profile) {
+                        setNotifications([{
+                            id: 'n1',
+                            message: 'Welcome back to SafarGo!',
+                            read: true,
+                            createdAt: new Date().toISOString(),
+                        }]);
+                    }
+                });
+            } else {
+                setIsAuthLoading(false);
+            }
+        });
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                loadProfile(session.user.id).then(() => {
+                    setIsAuthenticated(true);
+                });
+            } else {
+                setIsAuthenticated(false);
+                setUser(DEFAULT_USER);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [loadProfile]);
+
+    // Load trips on mount, bookings when user changes
+    useEffect(() => {
+        refreshTrips();
+    }, [refreshTrips]);
+
+    useEffect(() => {
+        if (user.id) refreshBookings();
+    }, [user.id, refreshBookings]);
+
+    // --- Theme ---
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -168,24 +233,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 root.classList.add(theme);
             }
         };
-
         applyTheme();
         localStorage.setItem('app-theme', theme);
 
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        const handleChange = () => { if (theme === 'system') applyTheme(); };
-        mediaQuery.addEventListener('change', handleChange);
-        return () => mediaQuery.removeEventListener('change', handleChange);
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => { if (theme === 'system') applyTheme(); };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
     }, [theme]);
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);
         localStorage.setItem('app-lang', lang);
     };
+    const setTheme = (t: Theme) => setThemeState(t);
 
-    const setTheme = (t: Theme) => {
-        setThemeState(t);
-    };
+    // --- Notifications ---
 
     const addNotification = (message: string) => {
         setNotifications(prev => [{
@@ -200,124 +263,157 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
+    // --- Auth ---
+
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
-        try {
-            const { token, user: authUser } = await authApi.login(email, password);
-            localStorage.setItem('safargo_token', token);
-            setUser({
-                id: authUser.id,
-                name: authUser.name,
-                avatar: authUser.avatar,
-                role: authUser.role,
-                walletBalance: authUser.walletBalance,
-                walletEscrow: authUser.walletEscrow,
-                isVerified: authUser.isVerified,
-                guideLevel: authUser.guideLevel,
-                completedTrips: authUser.completedTrips,
-                rating: authUser.rating,
-                memberSince: authUser.memberSince,
-            });
-            setIsAuthenticated(true);
-            return { success: true, role: authUser.role };
-        } catch (err) {
-            return { success: false, error: err instanceof Error ? err.message : 'Login failed' };
-        }
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) return { success: false, error: error.message };
+
+        const profile = await loadProfile(data.user.id);
+        setIsAuthenticated(true);
+        addNotification('Welcome back to SafarGo!');
+        return { success: true, role: profile?.role };
     };
 
     const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-        try {
-            const { token, user: authUser } = await authApi.register(name, email, password);
-            localStorage.setItem('safargo_token', token);
-            setUser({
-                id: authUser.id,
-                name: authUser.name,
-                avatar: authUser.avatar,
-                role: authUser.role,
-                walletBalance: authUser.walletBalance,
-                walletEscrow: authUser.walletEscrow,
-                isVerified: authUser.isVerified,
-                guideLevel: authUser.guideLevel,
-                completedTrips: authUser.completedTrips,
-                rating: authUser.rating,
-                memberSince: authUser.memberSince,
-            });
-            setIsAuthenticated(true);
-            return { success: true };
-        } catch (err) {
-            return { success: false, error: err instanceof Error ? err.message : 'Registration failed' };
-        }
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { name } },
+        });
+        if (error) return { success: false, error: error.message };
+        if (!data.user) return { success: false, error: 'Registration failed' };
+
+        // Wait briefly for the trigger to create the profile, then load it
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await loadProfile(data.user.id);
+        setIsAuthenticated(true);
+        addNotification('Welcome to SafarGo! Start exploring trips.');
+        return { success: true };
     };
 
-    const logout = () => {
-        localStorage.removeItem('safargo_token');
+    const logout = async () => {
+        await supabase.auth.signOut();
         setIsAuthenticated(false);
-        setUser(MOCK_USER);
+        setUser(DEFAULT_USER);
+        setBookings([]);
+        setNotifications([]);
     };
 
-    const switchRole = () => {
-        setUser((prev: User) => ({
-            ...prev,
-            role: prev.role === 'traveler' ? 'guide' : 'traveler'
-        }));
+    // --- User ---
+
+    const switchRole = async () => {
+        const newRole = user.role === 'traveler' ? 'guide' : 'traveler';
+        await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
+        setUser(prev => ({ ...prev, role: newRole }));
     };
 
-    const updateUser = (updates: Partial<User>) => {
-        setUser((prev: User) => ({ ...prev, ...updates }));
+    const updateUser = async (updates: Partial<User>) => {
+        const dbUpdates: Record<string, unknown> = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+        if (updates.walletBalance !== undefined) dbUpdates.wallet_balance = updates.walletBalance;
+
+        if (Object.keys(dbUpdates).length > 0) {
+            await supabase.from('profiles').update(dbUpdates).eq('id', user.id);
+        }
+        setUser(prev => ({ ...prev, ...updates }));
     };
 
-    const bookTrip = (tripId: string) => {
-        const trip = trips.find(t => t.id === tripId);
-        if (!trip) return false;
-        if (user.walletBalance < trip.price) return false;
-        if (trip.bookedSeats >= trip.maxSeats) return false;
-
-        setUser((prev: User) => ({
-            ...prev,
-            walletBalance: prev.walletBalance - trip.price
-        }));
-
-        setTrips((prev: Trip[]) => prev.map(t =>
-            t.id === tripId ? { ...t, bookedSeats: t.bookedSeats + 1 } : t
-        ));
-
-        const newBooking: Booking = {
-            id: `b${Date.now()}`,
-            travelerId: user.id,
-            tripId: tripId,
-            bookedAt: new Date().toISOString(),
-            status: 'confirmed',
-            hasRated: false
-        };
-        setBookings(prev => [...prev, newBooking]);
-        addNotification(`You booked "${trip.title}" successfully!`);
-
-        return true;
+    const withdrawFunds = async () => {
+        const amount = user.walletBalance;
+        await supabase.from('profiles').update({ wallet_balance: 0 }).eq('id', user.id);
+        setUser(prev => ({ ...prev, walletBalance: 0 }));
+        addNotification(`Withdrawal of ${amount} UZS processed.`);
     };
 
-    const addTrip = (trip: Trip) => {
-        setTrips((prev: Trip[]) => [trip, ...prev]);
-        addNotification(`Trip "${trip.title}" published successfully!`);
+    // --- Trips ---
+
+    const addTrip = async (trip: Trip) => {
+        const { error } = await supabase.from('trips').insert({
+            id: trip.id,
+            guide_id: trip.guideId,
+            title: trip.title,
+            description: trip.description,
+            location: trip.location,
+            price: trip.price,
+            max_seats: trip.maxSeats,
+            booked_seats: 0,
+            start_date: trip.startDate,
+            end_date: trip.endDate || null,
+            duration_days: trip.durationDays,
+            difficulty: trip.difficulty,
+            category: trip.category,
+            images: trip.images,
+            distance_km: trip.distanceKm,
+            altitude_gain_m: trip.altitudeGainM,
+            ai_recommendations: trip.aiRecommendations || null,
+        });
+
+        if (!error) {
+            setTrips(prev => [trip, ...prev]);
+            addNotification(`Trip "${trip.title}" published successfully!`);
+        }
     };
 
     const deleteTrip = (tripId: string): boolean => {
         const trip = trips.find(t => t.id === tripId);
         if (!trip || trip.guideId !== user.id) return false;
-        setTrips((prev: Trip[]) => prev.filter(t => t.id !== tripId));
+
+        supabase.from('trips').delete().eq('id', tripId).then();
+        setTrips(prev => prev.filter(t => t.id !== tripId));
         addNotification(`Trip "${trip.title}" has been deleted.`);
         return true;
     };
 
-    const updateTrip = (tripId: string, updates: Partial<Trip>) => {
-        setTrips((prev: Trip[]) => prev.map(t =>
-            t.id === tripId ? { ...t, ...updates } : t
-        ));
+    const updateTrip = async (tripId: string, updates: Partial<Trip>) => {
+        const dbUpdates: Record<string, unknown> = {};
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.price !== undefined) dbUpdates.price = updates.price;
+        if (updates.maxSeats !== undefined) dbUpdates.max_seats = updates.maxSeats;
+
+        if (Object.keys(dbUpdates).length > 0) {
+            await supabase.from('trips').update(dbUpdates).eq('id', tripId);
+        }
+        setTrips(prev => prev.map(t => t.id === tripId ? { ...t, ...updates } : t));
     };
 
-    const withdrawFunds = () => {
-        const amount = user.walletBalance;
-        setUser((prev: User) => ({ ...prev, walletBalance: 0 }));
-        addNotification(`Withdrawal of ${amount} UZS processed.`);
+    // --- Bookings ---
+
+    const bookTrip = (tripId: string): boolean => {
+        const trip = trips.find(t => t.id === tripId);
+        if (!trip || user.walletBalance < trip.price || trip.bookedSeats >= trip.maxSeats) return false;
+
+        const newBalance = user.walletBalance - trip.price;
+        const bookingId = crypto.randomUUID();
+
+        // Update DB asynchronously
+        supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user.id).then();
+        supabase.from('trips').update({ booked_seats: trip.bookedSeats + 1 }).eq('id', tripId).then();
+        supabase.from('bookings').insert({
+            id: bookingId,
+            traveler_id: user.id,
+            trip_id: tripId,
+            status: 'confirmed',
+        }).then();
+
+        // Update local state immediately
+        setUser(prev => ({ ...prev, walletBalance: newBalance }));
+        setTrips(prev => prev.map(t => t.id === tripId ? { ...t, bookedSeats: t.bookedSeats + 1 } : t));
+        setBookings(prev => [...prev, {
+            id: bookingId,
+            travelerId: user.id,
+            tripId,
+            bookedAt: new Date().toISOString(),
+            status: 'confirmed',
+            hasRated: false,
+        }]);
+        addNotification(`You booked "${trip.title}" successfully!`);
+        return true;
     };
+
+    // --- Ratings ---
 
     const rateTrip = (tripId: string, rating: number, comment?: string): boolean => {
         const booking = bookings.find(b => b.tripId === tripId && b.travelerId === user.id);
@@ -326,29 +422,40 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const trip = trips.find(t => t.id === tripId);
         if (!trip) return false;
 
+        const ratingId = crypto.randomUUID();
         const newRating: TripRating = {
-            id: `r${Date.now()}`,
+            id: ratingId,
             raterId: user.id,
             guideId: trip.guideId,
-            tripId: tripId,
-            rating: rating,
-            comment: comment,
-            createdAt: new Date().toISOString()
+            tripId,
+            rating,
+            comment,
+            createdAt: new Date().toISOString(),
         };
 
-        setTrips((prev: Trip[]) => prev.map(t => {
-            if (t.id === tripId) {
-                const updatedRatings = [...(t.ratings || []), newRating];
-                const avgRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0) / updatedRatings.length;
-                return { ...t, ratings: updatedRatings, averageRating: Math.round(avgRating * 10) / 10 };
-            }
+        // Insert to DB
+        supabase.from('ratings').insert({
+            id: ratingId,
+            rater_id: user.id,
+            guide_id: trip.guideId,
+            trip_id: tripId,
+            rating,
+            comment: comment || null,
+        }).then();
+        supabase.from('bookings').update({ has_rated: true }).eq('id', booking.id).then();
+
+        // Update average rating on trip
+        const updatedRatings = [...(trip.ratings || []), newRating];
+        const avgRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0) / updatedRatings.length;
+        const roundedAvg = Math.round(avgRating * 10) / 10;
+        supabase.from('trips').update({ average_rating: roundedAvg }).eq('id', tripId).then();
+
+        // Local state
+        setTrips(prev => prev.map(t => {
+            if (t.id === tripId) return { ...t, ratings: updatedRatings, averageRating: roundedAvg };
             return t;
         }));
-
-        setBookings(prev => prev.map(b =>
-            b.id === booking.id ? { ...b, hasRated: true } : b
-        ));
-
+        setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, hasRated: true } : b));
         return true;
     };
 
@@ -382,6 +489,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             getUserBookingForTrip,
             markNotificationsRead,
             addNotification,
+            refreshTrips,
+            refreshBookings,
         }}>
             {children}
         </AppContext.Provider>
