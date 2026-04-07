@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Moon, Sun } from 'lucide-react';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -32,6 +32,8 @@ interface SignInPageProps {
     onResetPassword?: () => void;
     onCreateAccount?: () => void;
     onGoToSignIn?: () => void;
+    onToggleTheme?: () => void;
+    isDark?: boolean;
     error?: string;
     isLoading?: boolean;
     submitLabel?: string;
@@ -72,6 +74,8 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     onResetPassword,
     onCreateAccount,
     onGoToSignIn,
+    onToggleTheme,
+    isDark = false,
     error,
     isLoading = false,
     submitLabel = 'Sign In',
@@ -85,7 +89,17 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     return (
         <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw]">
             {/* Left column: sign-in form */}
-            <section className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+            <section className="flex-1 flex items-center justify-center p-8 overflow-y-auto relative">
+                {/* Theme toggle */}
+                {onToggleTheme && (
+                    <button
+                        onClick={onToggleTheme}
+                        className="absolute top-6 right-6 p-2 rounded-xl border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                    >
+                        {isDark ? <Sun size={18} /> : <Moon size={18} />}
+                    </button>
+                )}
+
                 <div className="w-full max-w-md">
                     <div className="flex flex-col gap-6">
                         <h1 className="animate-element animate-delay-100 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
