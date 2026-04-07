@@ -55,7 +55,7 @@ export const Layout = () => {
                             <Compass size={18} className="text-white" />
                         </div>
                         <span className="text-lg font-bold dark:text-white hidden sm:block">
-                            BISP <span className="text-emerald-600">Travel</span>
+                            Safar<span className="text-emerald-600">Go</span>
                         </span>
                     </button>
 
@@ -194,9 +194,9 @@ export const Layout = () => {
                         <div className="w-6 h-6 bg-emerald-600 rounded flex items-center justify-center">
                             <Compass size={14} className="text-white" />
                         </div>
-                        <span className="text-sm font-semibold dark:text-white">BISP Travel</span>
+                        <span className="text-sm font-semibold dark:text-white">SafarGo</span>
                     </div>
-                    <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} BISP Travel Marketplace. All rights reserved.</p>
+                    <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} SafarGo. All rights reserved.</p>
                 </div>
             </footer>
         </div>
