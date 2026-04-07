@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { aiRouter } from './routes/ai.js';
 import { authRouter } from './routes/auth.js';
+import { adminRouter } from './routes/admin.js';
 
 dotenv.config({ path: '../.env' });
 
@@ -27,6 +28,7 @@ app.get('/api/health', (_req, res) => {
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/admin', adminRouter);
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
