@@ -25,7 +25,7 @@ export const Login = () => {
         setIsLoading(false);
 
         if (result.success) {
-            navigate('/');
+            navigate(result.role === 'admin' ? '/admin' : '/');
         } else {
             setError(result.error || t.loginFailed);
         }
