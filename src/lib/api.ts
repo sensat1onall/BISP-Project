@@ -28,7 +28,7 @@ export interface AuthResponse {
         name: string;
         email: string;
         avatar: string;
-        role: 'traveler' | 'guide';
+        role: 'traveler' | 'guide' | 'admin';
         walletBalance: number;
         walletEscrow: number;
         isVerified: boolean;
@@ -54,6 +54,38 @@ export const authApi = {
 
     getProfile: () =>
         apiRequest<{ user: AuthResponse['user'] }>('/auth/me'),
+};
+
+// Admin
+export interface AdminUser {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+    role: 'traveler' | 'guide';
+    walletBalance: number;
+    walletEscrow: number;
+    isVerified: boolean;
+    guideLevel: number;
+    completedTrips: number;
+    rating: number;
+    memberSince: string;
+}
+
+export interface AdminStats {
+    totalUsers: number;
+    travelers: number;
+    guides: number;
+    verifiedGuides: number;
+    totalBalance: number;
+}
+
+export const adminApi = {
+    getUsers: () =>
+        apiRequest<{ users: AdminUser[] }>('/admin/users'),
+
+    getStats: () =>
+        apiRequest<{ stats: AdminStats }>('/admin/stats'),
 };
 
 // AI (proxied through backend - API key stays server-side)
