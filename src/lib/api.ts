@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
 
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = localStorage.getItem('safargo_token');
