@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { adminApi, AdminUser, AdminStats } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/format';
 import {
     Users, Map, ShieldCheck, Wallet, LogOut, TrendingUp,
@@ -13,6 +13,28 @@ type Tab = 'overview' | 'users' | 'trips' | 'guides';
 export const AdminDashboard = () => {
     const { user, logout, trips } = useApp();
     const navigate = useNavigate();
+
+    interface AdminUser {
+        id: string;
+        name: string;
+        email: string;
+        avatar: string;
+        role: string;
+        walletBalance: number;
+        isVerified: boolean;
+        guideLevel: number;
+        completedTrips: number;
+        rating: number;
+        memberSince: string;
+    }
+
+    interface AdminStats {
+        totalUsers: number;
+        travelers: number;
+        guides: number;
+        verifiedGuides: number;
+        totalBalance: number;
+    }
 
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [users, setUsers] = useState<AdminUser[]>([]);
@@ -28,12 +50,30 @@ export const AdminDashboard = () => {
         setLoading(true);
         setError('');
         try {
-            const [usersRes, statsRes] = await Promise.all([
-                adminApi.getUsers(),
-                adminApi.getStats(),
-            ]);
-            setUsers(usersRes.users);
-            setStats(statsRes.stats);
+            const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'admin');
+
+            const mappedUsers: AdminUser[] = (profiles || []).map((p: Record<string, unknown>) => ({
+                id: p.id as string,
+                name: p.name as string,
+                email: (p.name as string),
+                avatar: p.avatar as string || '',
+                role: p.role as string || 'traveler',
+                walletBalance: Number(p.wallet_balance) || 0,
+                isVerified: p.is_verified as boolean || false,
+                guideLevel: Number(p.guide_level) || 0,
+                completedTrips: Number(p.completed_trips) || 0,
+                rating: Number(p.rating) || 0,
+                memberSince: p.member_since as string || '',
+            }));
+
+            setUsers(mappedUsers);
+            setStats({
+                totalUsers: mappedUsers.length,
+                travelers: mappedUsers.filter(u => u.role === 'traveler').length,
+                guides: mappedUsers.filter(u => u.role === 'guide').length,
+                verifiedGuides: mappedUsers.filter(u => u.role === 'guide' && u.isVerified).length,
+                totalBalance: mappedUsers.reduce((sum, u) => sum + u.walletBalance, 0),
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load data');
         } finally {
