@@ -5,7 +5,7 @@ import { translations } from '../i18n/translations';
 import { SignInPage } from '../components/ui/sign-in';
 
 export const Login = () => {
-    const { login, language, theme, setTheme } = useApp();
+    const { login, signInWithGoogle, language, theme, setTheme } = useApp();
     const navigate = useNavigate();
     const t = translations[language].auth;
 
@@ -43,7 +43,7 @@ export const Login = () => {
                 description={t.welcomeSub}
                 heroImageSrc="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=2160&q=80"
                 onSignIn={handleSignIn}
-                onGoogleSignIn={() => {}}
+                onGoogleSignIn={signInWithGoogle}
                 onResetPassword={() => {}}
                 onCreateAccount={() => navigate('/register')}
                 onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
