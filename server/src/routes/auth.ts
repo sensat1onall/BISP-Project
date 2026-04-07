@@ -25,7 +25,7 @@ export const users: StoredUser[] = [
     {
         id: 'admin',
         name: 'Admin',
-        email: 'admin',
+        email: 'admin@com',
         passwordHash: '$2a$10$Fuc0hO8PHo2m/hIUBDmPB.Zo3hcyD4LUQsKKdtGwQ5z1wkDSlllsy', // admin123
         avatar: 'https://ui-avatars.com/api/?name=Admin&background=ef4444&color=fff',
         role: 'admin',
