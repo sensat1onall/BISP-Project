@@ -2,28 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
-import { SignInPage, Testimonial } from '../components/ui/sign-in';
-
-const testimonials: Testimonial[] = [
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/women/44.jpg',
-        name: 'Nilufar K.',
-        handle: '@nilufar_travels',
-        text: 'Found the most amazing hiking guide through this platform. Chimgan was breathtaking!',
-    },
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/men/36.jpg',
-        name: 'Bobur A.',
-        handle: '@bobur_adventure',
-        text: 'As a guide, this app helped me connect with travelers from all over. Highly recommend!',
-    },
-    {
-        avatarSrc: 'https://randomuser.me/api/portraits/women/68.jpg',
-        name: 'Madina R.',
-        handle: '@madina_explorer',
-        text: 'The AI trip recommendations are spot on. Made planning our Samarkand trip so easy.',
-    },
-];
+import { SignInPage } from '../components/ui/sign-in';
 
 export const Login = () => {
     const { login, language } = useApp();
@@ -63,7 +42,6 @@ export const Login = () => {
                 }
                 description={t.welcomeSub}
                 heroImageSrc="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=2160&q=80"
-                testimonials={testimonials}
                 onSignIn={handleSignIn}
                 onGoogleSignIn={() => {}}
                 onResetPassword={() => {}}
