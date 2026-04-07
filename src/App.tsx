@@ -1,17 +1,32 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
 import { TripDetails } from './pages/TripDetails';
 import { CreateTrip } from './pages/CreateTrip';
 import { Profile } from './pages/Profile';
 import { Chat } from './pages/Chat';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { NotFound } from './pages/NotFound';
 
 const router = createBrowserRouter([
     {
+        path: '/login',
+        element: <Login />,
+    },
+    {
+        path: '/register',
+        element: <Register />,
+    },
+    {
         path: '/',
-        element: <Layout />,
+        element: (
+            <ProtectedRoute>
+                <Layout />
+            </ProtectedRoute>
+        ),
         errorElement: <NotFound />,
         children: [
             {
