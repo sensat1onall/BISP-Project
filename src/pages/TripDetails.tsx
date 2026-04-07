@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
-import { getAIWeatherForecast } from '../lib/gemini';
-import { Trip, WeatherForecast } from '../types';
+import { getAIWeatherForecast, AIWeatherForecast } from '../lib/gemini';
 import { formatCurrency } from '../utils/format';
-import { ArrowLeft, Clock, Mountain, Map as MapIcon, Calendar, Info, CloudSun, CheckCircle, AlertCircle, Star, Send, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Clock, Mountain, Map as MapIcon, CloudSun, CheckCircle, AlertCircle, Star, Send, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
@@ -17,7 +16,7 @@ export const TripDetails = () => {
     const commonT = translations[language].common;
 
     const trip = trips.find(t => t.id === id);
-    const [weather, setWeather] = useState<any>(null);
+    const [weather, setWeather] = useState<AIWeatherForecast | null>(null);
     const [bookingStatus, setBookingStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
     // Rating state
@@ -166,7 +165,7 @@ export const TripDetails = () => {
                             </div>
 
                             <div className="flex justify-between divide-x divide-blue-200 dark:divide-slate-600">
-                                {weather.forecast?.map((day: any, i: number) => (
+                                {weather.forecast?.map((day, i) => (
                                     <div key={i} className="flex-1 flex flex-col items-center text-center px-1">
                                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{day.day}</span>
                                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{day.temp}°</span>
