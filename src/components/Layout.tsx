@@ -4,6 +4,7 @@ import { Compass, MessageCircle, User, Map, PlusCircle, LogOut, Bell, ChevronDow
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { cn } from '../lib/cn';
+import { Boxes } from './ui/background-boxes';
 
 export const Layout = () => {
     const { user, language, logout, theme, setTheme, notifications, markNotificationsRead } = useApp();
@@ -42,14 +43,20 @@ export const Layout = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
+            {/* Interactive Background */}
+            <div className="fixed inset-0 w-full h-full z-0 dark:block hidden">
+                <div className="absolute inset-0 w-full h-full bg-slate-900 z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
+                <Boxes />
+            </div>
+
             {/* Skip to main content link for accessibility */}
             <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-emerald-600 focus:text-white focus:rounded-lg">
                 Skip to main content
             </a>
 
             {/* Top Navbar */}
-            <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+            <header className="sticky top-0 z-50 bg-white dark:bg-slate-800/95 dark:backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
                     {/* Logo */}
                     <button
@@ -196,12 +203,12 @@ export const Layout = () => {
             </header>
 
             {/* Main Content */}
-            <main id="main-content" className="max-w-7xl mx-auto">
+            <main id="main-content" className="max-w-7xl mx-auto relative z-10">
                 <Outlet />
             </main>
 
             {/* Footer */}
-            <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 mt-12">
+            <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/95 dark:backdrop-blur-sm mt-12 relative z-10">
                 <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 bg-emerald-600 rounded flex items-center justify-center">
