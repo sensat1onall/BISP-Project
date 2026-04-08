@@ -43,7 +43,7 @@ export const TripDetails = () => {
         </div>
     );
 
-    const isOrganizer = user.id === trip.guideId;
+    const isOrganizer = user.role === 'guide' && user.id === trip.guideId;
     const hasFunds = user.walletBalance >= trip.price;
     const spotsLeft = trip.maxSeats - trip.bookedSeats;
 
