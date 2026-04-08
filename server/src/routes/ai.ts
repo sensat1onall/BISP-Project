@@ -53,7 +53,7 @@ router.post('/generate-trip', async (req: Request, res: Response): Promise<void>
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const prompt = `
             You are a creative travel guide assistant for Uzbekistan.
@@ -105,7 +105,7 @@ router.post('/weather', async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const startFormatted = new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         const endFormatted = new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -169,7 +169,7 @@ router.post('/weather-forecast', async (req: Request, res: Response): Promise<vo
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const prompt = `
             Generate a simulated 3-day weather forecast for "${location}, Uzbekistan" for the upcoming weekend.
             Return ONLY the raw JSON string.
