@@ -24,6 +24,7 @@ export const Profile = () => {
     const [showGuideForm, setShowGuideForm] = useState(false);
     const [guideForm, setGuideForm] = useState({ fullName: '', surname: '', age: '', gender: '', experience: '' });
     const [isSubmittingApp, setIsSubmittingApp] = useState(false);
+    const [appError, setAppError] = useState('');
 
     const handleWithdraw = () => {
         if (window.confirm(walletT.withdrawConfirm)) {
@@ -327,8 +328,15 @@ export const Profile = () => {
                         <h2 className="text-xl font-bold dark:text-white mb-1">Apply to Become a Guide</h2>
                         <p className="text-xs text-slate-400 mb-5">Fill in your details. An admin will review your application.</p>
 
+                        {appError && (
+                            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 text-sm text-red-600 dark:text-red-300 mb-4">
+                                {appError}
+                            </div>
+                        )}
+
                         <form onSubmit={async (e) => {
                             e.preventDefault();
+                            setAppError('');
                             setIsSubmittingApp(true);
                             const success = await submitGuideApplication({
                                 fullName: guideForm.fullName,
@@ -338,7 +346,11 @@ export const Profile = () => {
                                 experience: guideForm.experience,
                             });
                             setIsSubmittingApp(false);
-                            if (success) setShowGuideForm(false);
+                            if (success) {
+                                setShowGuideForm(false);
+                            } else {
+                                setAppError('Failed to submit application. Please try again.');
+                            }
                         }} className="space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -348,7 +360,7 @@ export const Profile = () => {
                                         value={guideForm.fullName}
                                         onChange={e => setGuideForm(p => ({ ...p, fullName: e.target.value }))}
                                         className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                                        placeholder="Aziz"
+                                        placeholder="Name..."
                                     />
                                 </div>
                                 <div>
@@ -358,7 +370,7 @@ export const Profile = () => {
                                         value={guideForm.surname}
                                         onChange={e => setGuideForm(p => ({ ...p, surname: e.target.value }))}
                                         className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                                        placeholder="Karimov"
+                                        placeholder="Surname..."
                                     />
                                 </div>
                             </div>
