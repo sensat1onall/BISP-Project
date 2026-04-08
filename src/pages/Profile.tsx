@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { formatCurrency } from '../utils/format';
@@ -13,7 +13,12 @@ import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchToTraveler, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchToTraveler, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips, refreshProfile } = useApp();
+
+    // Refresh profile from DB on mount to catch admin changes (role, ban, etc.)
+    useEffect(() => {
+        refreshProfile();
+    }, []);
     const t = translations[language].profile;
     const commonT = translations[language].common;
     const walletT = translations[language].wallet;

@@ -55,6 +55,7 @@ interface AppContextType {
     addNotification: (message: string) => void;
     refreshTrips: () => Promise<void>;
     refreshBookings: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
     // Admin actions
     adminBanUser: (userId: string, ban: boolean) => Promise<void>;
     adminArchiveTrip: (tripId: string, archive: boolean) => Promise<void>;
@@ -183,6 +184,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const { data } = await supabase.from('bookings').select('*').eq('traveler_id', user.id);
         if (data) setBookings(data.map(mapBooking));
     }, [user.id]);
+
+    // Refresh profile from DB (used when admin changes role externally)
+    const refreshProfile = useCallback(async () => {
+        if (!user.id) return;
+        await loadProfile(user.id);
+        await loadGuideApplicationStatus(user.id);
+    }, [user.id, loadProfile]);
 
     // --- Auth init ---
 
@@ -534,17 +542,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 });
             }
 
-            // Add the current user as a member (if not the guide who was already added)
-            if (user.id !== trip.guideId) {
-                await supabase.from('chat_members').insert({
-                    chat_id: chatId,
-                    user_id: user.id,
-                }).then(({ error }) => {
-                    // Ignore duplicate key errors (user already a member)
-                    if (error && !error.message.includes('duplicate')) {
-                        console.error('Failed to add chat member:', error);
-                    }
-                });
+            // Add the current user as a member
+            const { error: memberError } = await supabase.from('chat_members').upsert({
+                chat_id: chatId,
+                user_id: user.id,
+            }, { onConflict: 'chat_id,user_id', ignoreDuplicates: true });
+
+            if (memberError) {
+                console.error('Failed to add chat member:', memberError);
             }
 
             // Generate AI welcome message for new groups
@@ -687,6 +692,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             addNotification,
             refreshTrips,
             refreshBookings,
+            refreshProfile,
             adminBanUser,
             adminArchiveTrip,
             adminDeleteTrip,
