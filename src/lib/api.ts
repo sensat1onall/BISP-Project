@@ -58,4 +58,10 @@ export const aiApi = {
             method: 'POST',
             body: JSON.stringify({ location }),
         }),
+
+    getChatWelcome: (tripName: string, location: string, difficulty: string) =>
+        apiRequest<{ message: string }>('/ai/chat-welcome', {
+            method: 'POST',
+            body: JSON.stringify({ tripName, location, difficulty }),
+        }),
 };

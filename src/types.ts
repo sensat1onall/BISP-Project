@@ -72,23 +72,37 @@ export interface DayForecast {
     icon: string;
 }
 
-export interface Message {
+export interface ChatGroup {
     id: string;
+    tripId: string;
+    name: string;
+    image: string;
+    createdAt: string;
+}
+
+export interface ChatMember {
+    id: string;
+    chatId: string;
+    userId: string;
+    joinedAt: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    chatId: string;
     senderId: string;
-    receiverId?: string; // If private
-    groupId?: string; // If group chat
+    senderName: string;
+    senderAvatar: string;
     content: string;
-    timestamp: string;
-    read: boolean;
+    createdAt: string;
+    isAi: boolean;
 }
 
 export interface ChatPreview {
-    id: string; // userId or groupId
+    id: string;
     name: string;
-    avatar: string;
+    image: string;
     lastMessage: string;
-    timestamp: string;
-    unreadCount: number;
-    isGroup: boolean;
-    online?: boolean;
+    lastMessageTime: string;
+    memberCount: number;
 }

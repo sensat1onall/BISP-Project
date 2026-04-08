@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
 import { supabase } from '../lib/supabase';
+import { getChatWelcomeMessage } from '../lib/gemini';
 
 export interface Notification {
     id: string;
@@ -413,6 +414,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             status: 'confirmed',
         }).then();
 
+        // Auto-create or join chat group for this trip
+        createOrJoinChatGroup(trip);
+
         // Update local state immediately
         setUser(prev => ({ ...prev, walletBalance: newBalance }));
         setTrips(prev => prev.map(t => t.id === tripId ? { ...t, bookedSeats: t.bookedSeats + 1 } : t));
@@ -426,6 +430,65 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }]);
         addNotification(`You booked "${trip.title}" successfully!`);
         return true;
+    };
+
+    // --- Chat ---
+
+    const createOrJoinChatGroup = async (trip: Trip) => {
+        try {
+            // Check if chat group already exists for this trip
+            const { data: existingGroup } = await supabase
+                .from('chat_groups')
+                .select('id')
+                .eq('trip_id', trip.id)
+                .single();
+
+            let chatId: string;
+
+            if (existingGroup) {
+                chatId = existingGroup.id;
+            } else {
+                // Create new chat group
+                const { data: newGroup, error } = await supabase
+                    .from('chat_groups')
+                    .insert({
+                        trip_id: trip.id,
+                        name: trip.title,
+                        image: trip.images[0] || '',
+                    })
+                    .select('id')
+                    .single();
+
+                if (error || !newGroup) return;
+                chatId = newGroup.id;
+
+                // Add the guide as first member
+                await supabase.from('chat_members').upsert({
+                    chat_id: chatId,
+                    user_id: trip.guideId,
+                }, { onConflict: 'chat_id,user_id' });
+
+                // Generate and insert AI welcome message
+                getChatWelcomeMessage(trip.title, trip.location, trip.difficulty).then(async (message) => {
+                    await supabase.from('chat_messages').insert({
+                        chat_id: chatId,
+                        sender_id: trip.guideId,
+                        sender_name: 'SafarGo AI',
+                        sender_avatar: '',
+                        content: message,
+                        is_ai: true,
+                    });
+                });
+            }
+
+            // Add the current traveler as a member
+            await supabase.from('chat_members').upsert({
+                chat_id: chatId,
+                user_id: user.id,
+            }, { onConflict: 'chat_id,user_id' });
+        } catch (err) {
+            console.error('Chat group creation error:', err);
+        }
     };
 
     // --- Ratings ---

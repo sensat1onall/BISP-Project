@@ -62,6 +62,16 @@ export const getWeatherWithRecommendations = async (
     }
 };
 
+export const getChatWelcomeMessage = async (tripName: string, location: string, difficulty: string): Promise<string> => {
+    try {
+        const result = await aiApi.getChatWelcome(tripName, location, difficulty);
+        return result.message;
+    } catch (error) {
+        console.error('Chat welcome error:', error);
+        return `Welcome to ${tripName}! Pack comfortable shoes, sunscreen, and plenty of water. Have a great adventure! 🏔️`;
+    }
+};
+
 export const getAIWeatherForecast = async (location: string): Promise<AIWeatherForecast | null> => {
     try {
         return await aiApi.getWeatherForecast(location);

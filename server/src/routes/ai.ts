@@ -208,4 +208,46 @@ router.post('/weather-forecast', async (req: Request, res: Response): Promise<vo
     }
 });
 
+// Generate chat welcome message with trip tips
+router.post('/chat-welcome', async (req: Request, res: Response): Promise<void> => {
+    if (!genAI) {
+        res.json({ message: 'Welcome to the trip group! Feel free to discuss plans and coordinate with your group.' });
+        return;
+    }
+
+    const clientIp = req.ip || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+        res.json({ message: 'Welcome to the trip group! Feel free to discuss plans and coordinate with your group.' });
+        return;
+    }
+
+    const tripName = sanitizeInput(req.body.tripName);
+    const location = sanitizeInput(req.body.location);
+    const difficulty = sanitizeInput(req.body.difficulty);
+
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+        const prompt = `
+            You are SafarGo, a friendly travel assistant bot for a trip group chat in Uzbekistan.
+            Generate a short, warm welcome message (2-3 sentences max) for a group chat for this trip:
+
+            Trip: "${tripName}"
+            Location: "${location}, Uzbekistan"
+            Difficulty: "${difficulty}"
+
+            Include 2-3 practical packing tips specific to the location and difficulty.
+            Keep it casual and friendly. Use 1-2 emojis. Return ONLY the plain text message, no JSON.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim();
+        res.json({ message: text });
+    } catch (error) {
+        console.error('Chat welcome error:', error);
+        res.json({ message: `Welcome to ${tripName || 'the trip'}! Pack comfortable shoes, sunscreen, and plenty of water. Have a great adventure! 🏔️` });
+    }
+});
+
 export { router as aiRouter };
