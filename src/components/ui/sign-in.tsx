@@ -94,6 +94,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 {onToggleTheme && (
                     <button
                         onClick={onToggleTheme}
+                        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                         className="absolute top-6 right-6 p-2 rounded-xl border border-border text-muted-foreground hover:bg-secondary transition-colors"
                     >
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -107,7 +108,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
                         {/* Error */}
                         {error && (
-                            <div className="animate-element bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-sm text-red-700 dark:text-red-300">
+                            <div role="alert" aria-live="assertive" className="animate-element bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-sm text-red-700 dark:text-red-300">
                                 {error}
                             </div>
                         )}

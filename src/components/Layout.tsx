@@ -43,12 +43,18 @@ export const Layout = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+            {/* Skip to main content link for accessibility */}
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-emerald-600 focus:text-white focus:rounded-lg">
+                Skip to main content
+            </a>
+
             {/* Top Navbar */}
             <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
                     {/* Logo */}
                     <button
                         onClick={() => navigate('/')}
+                        aria-label="SafarGo home"
                         className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                     >
                         <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
@@ -60,11 +66,12 @@ export const Layout = () => {
                     </button>
 
                     {/* Center Nav Links */}
-                    <nav className="flex items-center gap-1">
+                    <nav aria-label="Main navigation" className="flex items-center gap-1">
                         {navLinks.map(link => (
                             <button
                                 key={link.path}
                                 onClick={() => navigate(link.path)}
+                                aria-current={isActive(link.path) ? 'page' : undefined}
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                                     isActive(link.path)
@@ -94,6 +101,7 @@ export const Layout = () => {
                         {/* Theme Toggle */}
                         <button
                             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                             className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -106,6 +114,8 @@ export const Layout = () => {
                                     setNotifOpen(!notifOpen);
                                     if (!notifOpen && unreadCount > 0) markNotificationsRead?.();
                                 }}
+                                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                                aria-expanded={notifOpen}
                                 className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors relative"
                             >
                                 <Bell size={18} />
@@ -142,6 +152,9 @@ export const Layout = () => {
                         <div ref={userMenuRef} className="relative">
                             <button
                                 onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                aria-label="User menu"
+                                aria-expanded={userMenuOpen}
+                                aria-haspopup="true"
                                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                             >
                                 <img
@@ -183,7 +196,7 @@ export const Layout = () => {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto">
+            <main id="main-content" className="max-w-7xl mx-auto">
                 <Outlet />
             </main>
 

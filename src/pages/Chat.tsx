@@ -34,19 +34,19 @@ export const Chat = () => {
             <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
                 <h1 className="text-2xl font-bold dark:text-white">{t.chat}</h1>
                 <div className="flex gap-2">
-                    <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <button aria-label="Search conversations" className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                         <Search size={20} className="text-slate-600 dark:text-slate-400" />
                     </button>
-                    <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <button aria-label="More options" className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                         <MoreVertical size={20} className="text-slate-600 dark:text-slate-400" />
                     </button>
                 </div>
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto">
+            <div role="list" aria-label="Conversations" className="flex-1 overflow-y-auto">
                 {MOCK_CHATS.map(chat => (
-                    <div key={chat.id} className="flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-800/50 relative">
+                    <div role="listitem" key={chat.id} className="flex items-center gap-4 px-4 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border-b border-slate-50 dark:border-slate-800/50 relative">
                         <div className="relative">
                             <img
                                 src={chat.avatar}

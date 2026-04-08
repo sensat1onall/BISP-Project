@@ -58,7 +58,7 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                     <h1 className="text-2xl font-bold dark:text-white">
                         {showBooked ? navT.myTrips : t.featured}
                     </h1>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p role="status" aria-live="polite" className="text-sm text-slate-400 mt-1">
                         {filteredTrips.length} {filteredTrips.length === 1 ? 'trip' : 'trips'} found
                     </p>
                 </div>
@@ -71,6 +71,7 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                     <input
                         type="text"
                         placeholder={translations[language].common.searchPlaceholder}
+                        aria-label="Search trips"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm"
@@ -78,6 +79,8 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                 </div>
                 <button
                     onClick={() => setShowFilters(!showFilters)}
+                    aria-expanded={showFilters}
+                    aria-label="Toggle filters"
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                         showFilters || hasActiveFilters
                             ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'

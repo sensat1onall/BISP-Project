@@ -28,15 +28,19 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
     const formattedDate = dateObj.toLocaleDateString(language === 'en' ? 'en-US' : language === 'ru' ? 'ru-RU' : 'uz-UZ', { month: 'short', day: 'numeric' });
 
     return (
-        <div
+        <article
             onClick={() => navigate(`/trip/${trip.id}`)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/trip/${trip.id}`); } }}
+            role="button"
+            tabIndex={0}
+            aria-label={`${trip.title} in ${trip.location} - ${formatCurrency(trip.price)}`}
             className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 w-full active:scale-[0.98] cursor-pointer"
         >
             {/* Hero Image */}
             <div className="relative h-48 w-full overflow-hidden">
                 <img
                     src={trip.images[0]}
-                    alt={trip.title}
+                    alt={`${trip.title} in ${trip.location}`}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-2">
@@ -84,6 +88,6 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
     );
 };
