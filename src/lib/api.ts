@@ -64,4 +64,18 @@ export const aiApi = {
             method: 'POST',
             body: JSON.stringify({ tripName, location, difficulty }),
         }),
+
+    generateItinerary: (title: string, location: string, durationDays: number, difficulty: string) =>
+        apiRequest<{
+            days: Array<{
+                day: number;
+                title: string;
+                activities: Array<{ time: string; activity: string; description: string }>;
+            }>;
+            packingList: string[];
+            safetyTips: string;
+        }>('/ai/generate-itinerary', {
+            method: 'POST',
+            body: JSON.stringify({ title, location, durationDays, difficulty }),
+        }),
 };

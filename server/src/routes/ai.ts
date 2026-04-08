@@ -250,4 +250,70 @@ router.post('/chat-welcome', async (req: Request, res: Response): Promise<void> 
     }
 });
 
+// Generate trip itinerary (hour-by-hour schedule)
+router.post('/generate-itinerary', async (req: Request, res: Response): Promise<void> => {
+    if (!genAI) {
+        res.status(503).json({ error: 'AI service not configured' });
+        return;
+    }
+
+    const clientIp = req.ip || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+        res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        return;
+    }
+
+    const title = sanitizeInput(req.body.title);
+    const location = sanitizeInput(req.body.location);
+    const durationDays = Number(req.body.durationDays) || 1;
+    const difficulty = sanitizeInput(req.body.difficulty);
+
+    if (!title || !location) {
+        res.status(400).json({ error: 'Title and location are required' });
+        return;
+    }
+
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+        const prompt = `
+            You are a professional trip planner for Uzbekistan adventures.
+            Create a detailed hour-by-hour itinerary for this trip:
+
+            Trip: "${title}"
+            Location: "${location}, Uzbekistan"
+            Duration: ${durationDays} day(s)
+            Difficulty: "${difficulty}"
+
+            Return ONLY raw JSON with no markdown:
+            {
+                "days": [
+                    {
+                        "day": 1,
+                        "title": "Day 1 - Arrival & Setup",
+                        "activities": [
+                            { "time": "07:00", "activity": "Meet at departure point", "description": "Brief description" },
+                            { "time": "08:30", "activity": "Travel to location", "description": "Brief description" }
+                        ]
+                    }
+                ],
+                "packingList": ["item1", "item2", "item3"],
+                "safetyTips": "Brief safety paragraph"
+            }
+
+            Make it realistic for Uzbekistan terrain. Include meal breaks, rest stops, and realistic timing.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const data = JSON.parse(cleanedText);
+        res.json(data);
+    } catch (error) {
+        console.error('Itinerary generation error:', error);
+        res.status(500).json({ error: 'Failed to generate itinerary' });
+    }
+});
+
 export { router as aiRouter };

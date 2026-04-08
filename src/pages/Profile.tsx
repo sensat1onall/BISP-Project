@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { formatCurrency } from '../utils/format';
 import { Theme, Language } from '../types';
+import { ArrowUpRight } from 'lucide-react';
 import {
     Settings, CreditCard, ChevronRight, LogOut, CheckCircle2,
     Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck,
@@ -12,7 +13,7 @@ import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout, updateUser } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout, updateUser, bookings, trips } = useApp();
     const t = translations[language].profile;
     const commonT = translations[language].common;
     const walletT = translations[language].wallet;
@@ -129,6 +130,34 @@ export const Profile = () => {
                             <MetalButton variant="success" onClick={handleWithdraw} disabled={user.walletBalance === 0}>
                                 {t.withdraw}
                             </MetalButton>
+                        </div>
+
+                        {/* Transaction History */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                            <h3 className="font-semibold dark:text-white text-sm mb-3">Recent Transactions</h3>
+                            {bookings.length > 0 ? (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {bookings.slice(0, 10).map(b => {
+                                        const trip = trips.find(t => t.id === b.tripId);
+                                        return (
+                                            <div key={b.id} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                                                        <ArrowUpRight size={12} className="text-red-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium dark:text-white truncate max-w-[150px]">{trip?.title || 'Trip booking'}</p>
+                                                        <p className="text-[10px] text-slate-400">{new Date(b.bookedAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-semibold text-red-500">-{trip ? formatCurrency(trip.price) : '—'}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-400">No transactions yet. Book a trip to see your history.</p>
+                            )}
                         </div>
 
                         {/* Menu */}

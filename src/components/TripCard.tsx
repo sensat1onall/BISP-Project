@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trip } from '../types';
-import { MapPin, Calendar, Users, Star } from 'lucide-react';
+import { MapPin, Calendar, Users, Star, Flame, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../utils/format';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -51,6 +51,24 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                         <span className="px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1">
                             <Star size={12} fill="currentColor" />
                             {trip.averageRating.toFixed(1)}
+                        </span>
+                    )}
+                </div>
+                {/* Status Badges - top right */}
+                <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+                    {spotsLeft <= 2 && spotsLeft > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white flex items-center gap-1">
+                            <Flame size={10} /> Almost Full
+                        </span>
+                    )}
+                    {spotsLeft === 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white">
+                            Sold Out
+                        </span>
+                    )}
+                    {new Date(trip.startDate).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && new Date(trip.startDate).getTime() > Date.now() && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white flex items-center gap-1">
+                            <Sparkles size={10} /> New
                         </span>
                     )}
                 </div>

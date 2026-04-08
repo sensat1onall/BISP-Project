@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TripCard } from '../components/TripCard';
 import { translations } from '../i18n/translations';
-import { Search, Map, SlidersHorizontal, X } from 'lucide-react';
+import { Search, Map, SlidersHorizontal, X, ArrowUpDown } from 'lucide-react';
 import { LiquidButton } from '../components/ui/liquid-glass-button';
 
 export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
@@ -14,6 +14,7 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
     const [showFilters, setShowFilters] = useState(false);
     const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
     const [maxPrice, setMaxPrice] = useState<number>(0);
+    const [sortBy, setSortBy] = useState<string>('newest');
 
     const categories = [
         { id: 'all', label: t.categories.all },
@@ -46,6 +47,18 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
         return matchesCategory && matchesSearch && matchesDifficulty && matchesPrice;
     });
 
+    // Sort trips
+    const sortedTrips = [...filteredTrips].sort((a, b) => {
+        switch (sortBy) {
+            case 'price-low': return a.price - b.price;
+            case 'price-high': return b.price - a.price;
+            case 'rating': return (b.averageRating || 0) - (a.averageRating || 0);
+            case 'popular': return b.bookedSeats - a.bookedSeats;
+            case 'newest':
+            default: return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+        }
+    });
+
     const hasActiveFilters = difficultyFilter !== 'all' || maxPrice > 0;
 
     const clearFilters = () => {
@@ -62,7 +75,7 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                         {showBooked ? navT.myTrips : t.featured}
                     </h1>
                     <p role="status" aria-live="polite" className="text-sm text-slate-400 mt-1">
-                        {filteredTrips.length} {filteredTrips.length === 1 ? 'trip' : 'trips'} found
+                        {sortedTrips.length} {sortedTrips.length === 1 ? 'trip' : 'trips'} found
                     </p>
                 </div>
             </div>
@@ -98,6 +111,23 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
                         </span>
                     )}
                 </button>
+
+                {/* Sort Dropdown */}
+                <div className="relative">
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        aria-label="Sort trips"
+                        className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-medium px-4 py-2.5 pr-9 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
+                    >
+                        <option value="newest">Newest</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="rating">Top Rated</option>
+                        <option value="popular">Most Popular</option>
+                    </select>
+                    <ArrowUpDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
             </div>
 
             {/* Expanded Filters */}
@@ -174,12 +204,12 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
 
             {/* Trip Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredTrips.map(trip => (
+                {sortedTrips.map(trip => (
                     <TripCard key={trip.id} trip={trip} />
                 ))}
             </div>
 
-            {filteredTrips.length === 0 && (
+            {sortedTrips.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                     <Map size={48} strokeWidth={1.5} className="mb-4 text-slate-300 dark:text-slate-600" />
                     <p className="text-lg font-medium">No trips found</p>

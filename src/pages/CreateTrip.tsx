@@ -2,9 +2,10 @@ import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { generateTripContent, getWeatherWithRecommendations, WeatherWithRecommendations } from '../lib/gemini';
+import { aiApi } from '../lib/api';
 import {
     Sparkles, MapPin, DollarSign, Users, Mountain, ArrowLeft, Loader2,
-    Calendar, Ruler, ImagePlus, X, CloudSun, AlertTriangle, Check
+    Calendar, Ruler, ImagePlus, X, CloudSun, AlertTriangle, Check, ClipboardList, Clock, ShieldCheck, Backpack
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Trip } from '../types';
@@ -18,7 +19,13 @@ export const CreateTrip = () => {
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+    const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);
     const [weatherData, setWeatherData] = useState<WeatherWithRecommendations | null>(null);
+    const [itinerary, setItinerary] = useState<{
+        days: Array<{ day: number; title: string; activities: Array<{ time: string; activity: string; description: string }> }>;
+        packingList: string[];
+        safetyTips: string;
+    } | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         location: '',
@@ -84,6 +91,27 @@ export const CreateTrip = () => {
             console.error("Failed to get weather");
         } finally {
             setIsLoadingWeather(false);
+        }
+    };
+
+    const handleGenerateItinerary = async () => {
+        if (!formData.title || !formData.location) return;
+        setIsGeneratingItinerary(true);
+        try {
+            const duration = formData.startDate && formData.endDate
+                ? Math.max(1, Math.ceil((new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / (1000 * 60 * 60 * 24)))
+                : 1;
+            const data = await aiApi.generateItinerary(
+                formData.title,
+                formData.location,
+                duration,
+                formData.difficulty
+            );
+            setItinerary(data);
+        } catch {
+            console.error('Itinerary generation failed');
+        } finally {
+            setIsGeneratingItinerary(false);
         }
     };
 
@@ -298,6 +326,81 @@ export const CreateTrip = () => {
                                         <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
                                         <p className="text-sm text-amber-800 dark:text-amber-200">{weatherData.recommendations}</p>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* AI Itinerary Section */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-semibold dark:text-white flex items-center gap-2">
+                            <ClipboardList className="text-indigo-500" size={18} />
+                            AI Trip Itinerary
+                        </h3>
+                        <button
+                            type="button"
+                            onClick={handleGenerateItinerary}
+                            disabled={!formData.title || !formData.location || isGeneratingItinerary}
+                            aria-label="Generate trip itinerary with AI"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                        >
+                            {isGeneratingItinerary ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                            {isGeneratingItinerary ? 'Generating...' : 'Generate Itinerary'}
+                        </button>
+                    </div>
+
+                    {!itinerary && !isGeneratingItinerary && (
+                        <p className="text-xs text-slate-400">Enter a trip title and location, then generate a detailed hour-by-hour schedule with AI.</p>
+                    )}
+
+                    {itinerary && (
+                        <div className="space-y-4">
+                            {itinerary.days.map((day) => (
+                                <div key={day.day} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4">
+                                    <h4 className="font-semibold text-sm dark:text-white mb-3 flex items-center gap-2">
+                                        <Calendar size={14} className="text-indigo-500" />
+                                        {day.title}
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {day.activities.map((act, idx) => (
+                                            <div key={idx} className="flex gap-3 text-sm">
+                                                <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-mono text-xs min-w-[50px]">
+                                                    <Clock size={10} />
+                                                    {act.time}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium dark:text-white">{act.activity}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{act.description}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+
+                            {itinerary.packingList.length > 0 && (
+                                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+                                    <h4 className="font-semibold text-sm text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
+                                        <Backpack size={14} /> Packing List
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {itinerary.packingList.map((item, idx) => (
+                                            <span key={idx} className="px-2 py-1 bg-emerald-100 dark:bg-emerald-800/30 text-emerald-700 dark:text-emerald-300 rounded-full text-xs">
+                                                {item}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {itinerary.safetyTips && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4">
+                                    <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-2">
+                                        <ShieldCheck size={14} /> Safety Tips
+                                    </h4>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300">{itinerary.safetyTips}</p>
                                 </div>
                             )}
                         </div>
