@@ -1,11 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
-    const rows = new Array(150).fill(1);
-    const cols = new Array(100).fill(1);
-
     const colors = [
         "rgb(52 211 153)",  // emerald-400
         "rgb(16 185 129)",  // emerald-500
@@ -18,58 +15,64 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
         "rgb(216 180 254)", // purple-300
     ];
 
-    const getRandomColor = () => {
-        return colors[Math.floor(Math.random() * colors.length)];
-    };
+    const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
+
+    // Calculate grid to fill viewport — 40px cells
+    const cols = 50;
+    const rows = 40;
+
+    const cells = useMemo(() => {
+        const arr = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                arr.push({ r, c, hasPlus: r % 3 === 0 && c % 3 === 0 });
+            }
+        }
+        return arr;
+    }, []);
 
     return (
         <div
-            style={{
-                transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
-            }}
             className={cn(
-                "absolute -left-[40%] p-4 -top-[40%] flex w-[300%] h-[300%] z-0",
+                "absolute inset-0 w-full h-full z-0 overflow-hidden",
                 className
             )}
             {...rest}
         >
-            {rows.map((_, i) => (
-                <div
-                    key={`row${i}`}
-                    className="w-16 h-8 border-l border-slate-300/30 dark:border-slate-700/40 relative"
-                >
-                    {cols.map((_, j) => (
-                        <motion.div
-                            whileHover={{
-                                backgroundColor: getRandomColor(),
-                                transition: { duration: 0 },
-                            }}
-                            animate={{
-                                transition: { duration: 2 },
-                            }}
-                            key={`col${j}`}
-                            className="w-16 h-8 border-r border-t border-slate-300/30 dark:border-slate-700/40 relative"
-                        >
-                            {j % 2 === 0 && i % 2 === 0 ? (
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth="1.5"
-                                    stroke="currentColor"
-                                    className="absolute h-6 w-10 -top-[14px] -left-[22px] text-slate-300/30 dark:text-slate-700/40 stroke-[1px] pointer-events-none"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M12 6v12m6-6H6"
-                                    />
-                                </svg>
-                            ) : null}
-                        </motion.div>
-                    ))}
-                </div>
-            ))}
+            <div
+                className="absolute inset-0"
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${cols}, 40px)`,
+                    gridTemplateRows: `repeat(${rows}, 40px)`,
+                    width: `${cols * 40}px`,
+                    height: `${rows * 40}px`,
+                }}
+            >
+                {cells.map(({ r, c, hasPlus }) => (
+                    <motion.div
+                        key={`${r}-${c}`}
+                        whileHover={{
+                            backgroundColor: getRandomColor(),
+                            transition: { duration: 0 },
+                        }}
+                        className="border-r border-b border-slate-300/20 dark:border-slate-700/30 relative"
+                    >
+                        {hasPlus && (
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth="1.5"
+                                stroke="currentColor"
+                                className="absolute h-4 w-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-300/30 dark:text-slate-700/40 stroke-[1px] pointer-events-none"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+                            </svg>
+                        )}
+                    </motion.div>
+                ))}
+            </div>
         </div>
     );
 };

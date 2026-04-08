@@ -92,9 +92,8 @@ export const Register = () => {
 
     return (
         <div className="bg-background text-foreground relative overflow-hidden">
-            <div className="fixed inset-0 w-full h-full z-0">
-                <div className="absolute inset-0 w-full h-full bg-slate-50 dark:bg-slate-900 z-10 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
-                <Boxes />
+            <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
+                <Boxes className="pointer-events-auto" />
             </div>
             <SignInPage
                 mode="signup"
