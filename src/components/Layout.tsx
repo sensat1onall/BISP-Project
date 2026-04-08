@@ -44,9 +44,10 @@ export const Layout = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
-            {/* Interactive Background */}
-            <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
-                <Boxes className="pointer-events-auto" />
+            {/* Interactive Background - exact demo pattern */}
+            <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-900 z-0">
+                <div className="absolute inset-0 w-full h-full bg-slate-900 z-20 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
+                <Boxes />
             </div>
 
             {/* Skip to main content link for accessibility */}
@@ -202,12 +203,12 @@ export const Layout = () => {
             </header>
 
             {/* Main Content */}
-            <main id="main-content" className="max-w-7xl mx-auto relative z-10">
+            <main id="main-content" className="max-w-7xl mx-auto relative z-30">
                 <Outlet />
             </main>
 
             {/* Footer */}
-            <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/95 dark:backdrop-blur-sm mt-12 relative z-10">
+            <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/95 dark:backdrop-blur-sm mt-12 relative z-30">
                 <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 bg-emerald-600 rounded flex items-center justify-center">
