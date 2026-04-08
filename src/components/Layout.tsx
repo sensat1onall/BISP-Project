@@ -44,9 +44,8 @@ export const Layout = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
-            {/* Interactive Background - exact demo pattern */}
-            <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-900 z-0">
-                <div className="absolute inset-0 w-full h-full bg-slate-900 z-20 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
+            {/* Interactive Background */}
+            <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-50 dark:bg-slate-900 z-0">
                 <Boxes />
             </div>
 

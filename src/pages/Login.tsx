@@ -34,8 +34,7 @@ export const Login = () => {
 
     return (
         <div className="bg-background text-foreground relative overflow-hidden">
-            <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-900 z-0">
-                <div className="absolute inset-0 w-full h-full bg-slate-900 z-20 [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
+            <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-50 dark:bg-slate-900 z-0">
                 <Boxes />
             </div>
             <SignInPage
