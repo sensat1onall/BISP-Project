@@ -7,7 +7,7 @@ import {
     Users, Map, ShieldCheck, Wallet, LogOut, TrendingUp,
     Eye, UserCheck, Mountain, Loader2, AlertCircle,
     Ban, Archive, ArchiveRestore, Trash2, ShieldOff, ArrowRightLeft, DollarSign, UserX,
-    ClipboardCheck, CheckCircle, XCircle
+    ClipboardCheck, CheckCircle, XCircle, Plus
 } from 'lucide-react';
 import { GuideApplication } from '../types';
 
@@ -158,6 +158,18 @@ export const AdminDashboard = () => {
         setActionLoading(userId);
         await adminVerifyGuide(userId, verify);
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, isVerified: verify } : u));
+        setActionLoading(null);
+    };
+
+    const handleTopUp = async (userId: string, currentBalance: number) => {
+        const input = window.prompt('Enter amount to add (UZS):', '500000');
+        if (!input) return;
+        const amount = Number(input);
+        if (isNaN(amount) || amount <= 0) return;
+        setActionLoading(userId);
+        const newBalance = currentBalance + amount;
+        await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', userId);
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, walletBalance: newBalance } : u));
         setActionLoading(null);
     };
 
@@ -415,6 +427,16 @@ export const AdminDashboard = () => {
                                                                 title={`Switch to ${u.role === 'traveler' ? 'guide' : 'traveler'}`}
                                                             >
                                                                 <ArrowRightLeft size={14} />
+                                                            </button>
+
+                                                            {/* Top Up Balance */}
+                                                            <button
+                                                                onClick={() => handleTopUp(u.id, u.walletBalance)}
+                                                                disabled={actionLoading === u.id}
+                                                                className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                                                                title="Top up wallet balance"
+                                                            >
+                                                                <Plus size={14} />
                                                             </button>
                                                         </div>
                                                     </td>
