@@ -10,6 +10,7 @@ export interface User {
     walletBalance: number;
     walletEscrow: number;
     isVerified: boolean;
+    isBanned: boolean;
     guideLevel?: number; // 1-5
     completedTrips: number;
     rating: number;
@@ -56,6 +57,7 @@ export interface Trip {
     ratings?: TripRating[];
     averageRating?: number;
     aiRecommendations?: string; // AI-generated tips based on weather/conditions
+    isArchived?: boolean;
 }
 
 export interface WeatherForecast {

@@ -18,6 +18,7 @@ const DEFAULT_USER: User = {
     walletBalance: 0,
     walletEscrow: 0,
     isVerified: false,
+    isBanned: false,
     guideLevel: 0,
     completedTrips: 0,
     rating: 0,
@@ -52,6 +53,12 @@ interface AppContextType {
     addNotification: (message: string) => void;
     refreshTrips: () => Promise<void>;
     refreshBookings: () => Promise<void>;
+    // Admin actions
+    adminBanUser: (userId: string, ban: boolean) => Promise<void>;
+    adminArchiveTrip: (tripId: string, archive: boolean) => Promise<void>;
+    adminDeleteTrip: (tripId: string) => Promise<void>;
+    adminVerifyGuide: (userId: string, verify: boolean) => Promise<void>;
+    adminChangeRole: (userId: string, newRole: 'traveler' | 'guide') => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -66,6 +73,7 @@ function mapProfile(row: Record<string, unknown>): User {
         walletBalance: Number(row.wallet_balance) || 0,
         walletEscrow: Number(row.wallet_escrow) || 0,
         isVerified: row.is_verified as boolean || false,
+        isBanned: row.is_banned as boolean || false,
         guideLevel: Number(row.guide_level) || 0,
         completedTrips: Number(row.completed_trips) || 0,
         rating: Number(row.rating) || 0,
@@ -94,6 +102,7 @@ function mapTrip(row: Record<string, unknown>): Trip {
         altitudeGainM: Number(row.altitude_gain_m) || 0,
         averageRating: row.average_rating ? Number(row.average_rating) : undefined,
         aiRecommendations: row.ai_recommendations as string || undefined,
+        isArchived: row.is_archived as boolean || false,
         ratings: [],
     };
 }
@@ -401,6 +410,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // --- Bookings ---
 
     const bookTrip = (tripId: string): boolean => {
+        if (user.isBanned) {
+            addNotification('Your account is suspended. Contact support for assistance.');
+            return false;
+        }
         const trip = trips.find(t => t.id === tripId);
         if (!trip || user.walletBalance < trip.price || trip.bookedSeats >= trip.maxSeats) return false;
 
@@ -555,6 +568,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return bookings.find(b => b.tripId === tripId && b.travelerId === user.id);
     };
 
+    // --- Admin Actions ---
+
+    const adminBanUser = async (userId: string, ban: boolean) => {
+        await supabase.from('profiles').update({ is_banned: ban }).eq('id', userId);
+        addNotification(`User ${ban ? 'banned' : 'unbanned'} successfully.`);
+    };
+
+    const adminArchiveTrip = async (tripId: string, archive: boolean) => {
+        await supabase.from('trips').update({ is_archived: archive }).eq('id', tripId);
+        setTrips(prev => prev.map(t => t.id === tripId ? { ...t, isArchived: archive } : t));
+        addNotification(`Trip ${archive ? 'archived' : 'restored'} successfully.`);
+    };
+
+    const adminDeleteTrip = async (tripId: string) => {
+        const trip = trips.find(t => t.id === tripId);
+        await supabase.from('trips').delete().eq('id', tripId);
+        setTrips(prev => prev.filter(t => t.id !== tripId));
+        addNotification(`Trip "${trip?.title || ''}" deleted permanently.`);
+    };
+
+    const adminVerifyGuide = async (userId: string, verify: boolean) => {
+        await supabase.from('profiles').update({ is_verified: verify }).eq('id', userId);
+        addNotification(`Guide ${verify ? 'verified' : 'unverified'} successfully.`);
+    };
+
+    const adminChangeRole = async (userId: string, newRole: 'traveler' | 'guide') => {
+        await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+        addNotification(`User role changed to ${newRole}.`);
+    };
+
     return (
         <AppContext.Provider value={{
             user,
@@ -584,6 +627,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             addNotification,
             refreshTrips,
             refreshBookings,
+            adminBanUser,
+            adminArchiveTrip,
+            adminDeleteTrip,
+            adminVerifyGuide,
+            adminChangeRole,
         }}>
             {children}
         </AppContext.Provider>

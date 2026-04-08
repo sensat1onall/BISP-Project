@@ -5,13 +5,14 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../utils/format';
 import {
     Users, Map, ShieldCheck, Wallet, LogOut, TrendingUp,
-    Eye, UserCheck, Mountain, Loader2, AlertCircle
+    Eye, UserCheck, Mountain, Loader2, AlertCircle,
+    Ban, Archive, ArchiveRestore, Trash2, ShieldOff, ArrowRightLeft, DollarSign, UserX
 } from 'lucide-react';
 
 type Tab = 'overview' | 'users' | 'trips' | 'guides';
 
 export const AdminDashboard = () => {
-    const { user, logout, trips } = useApp();
+    const { user, logout, trips, adminBanUser, adminArchiveTrip, adminDeleteTrip, adminVerifyGuide, adminChangeRole } = useApp();
     const navigate = useNavigate();
 
     interface AdminUser {
@@ -22,6 +23,7 @@ export const AdminDashboard = () => {
         role: string;
         walletBalance: number;
         isVerified: boolean;
+        isBanned: boolean;
         guideLevel: number;
         completedTrips: number;
         rating: number;
@@ -33,7 +35,10 @@ export const AdminDashboard = () => {
         travelers: number;
         guides: number;
         verifiedGuides: number;
+        bannedUsers: number;
         totalBalance: number;
+        totalRevenue: number;
+        archivedTrips: number;
     }
 
     const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -41,6 +46,7 @@ export const AdminDashboard = () => {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -60,6 +66,7 @@ export const AdminDashboard = () => {
                 role: p.role as string || 'traveler',
                 walletBalance: Number(p.wallet_balance) || 0,
                 isVerified: p.is_verified as boolean || false,
+                isBanned: p.is_banned as boolean || false,
                 guideLevel: Number(p.guide_level) || 0,
                 completedTrips: Number(p.completed_trips) || 0,
                 rating: Number(p.rating) || 0,
@@ -67,18 +74,59 @@ export const AdminDashboard = () => {
             }));
 
             setUsers(mappedUsers);
+            const archivedCount = trips.filter(t => t.isArchived).length;
+            const revenue = trips.reduce((sum, t) => sum + (t.price * t.bookedSeats), 0);
+
             setStats({
                 totalUsers: mappedUsers.length,
                 travelers: mappedUsers.filter(u => u.role === 'traveler').length,
                 guides: mappedUsers.filter(u => u.role === 'guide').length,
                 verifiedGuides: mappedUsers.filter(u => u.role === 'guide' && u.isVerified).length,
+                bannedUsers: mappedUsers.filter(u => u.isBanned).length,
                 totalBalance: mappedUsers.reduce((sum, u) => sum + u.walletBalance, 0),
+                totalRevenue: revenue,
+                archivedTrips: archivedCount,
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load data');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleBanUser = async (userId: string, ban: boolean) => {
+        setActionLoading(userId);
+        await adminBanUser(userId, ban);
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isBanned: ban } : u));
+        setActionLoading(null);
+    };
+
+    const handleChangeRole = async (userId: string, currentRole: string) => {
+        const newRole = currentRole === 'traveler' ? 'guide' : 'traveler';
+        setActionLoading(userId);
+        await adminChangeRole(userId, newRole as 'traveler' | 'guide');
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        setActionLoading(null);
+    };
+
+    const handleArchiveTrip = async (tripId: string, archive: boolean) => {
+        setActionLoading(tripId);
+        await adminArchiveTrip(tripId, archive);
+        setActionLoading(null);
+    };
+
+    const handleDeleteTrip = async (tripId: string) => {
+        if (!window.confirm('Are you sure? This permanently deletes the trip and all its bookings.')) return;
+        setActionLoading(tripId);
+        await adminDeleteTrip(tripId);
+        setActionLoading(null);
+    };
+
+    const handleVerifyGuide = async (userId: string, verify: boolean) => {
+        setActionLoading(userId);
+        await adminVerifyGuide(userId, verify);
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isVerified: verify } : u));
+        setActionLoading(null);
     };
 
     const handleLogout = () => {
@@ -122,6 +170,7 @@ export const AdminDashboard = () => {
                 </div>
                 <button
                     onClick={handleLogout}
+                    aria-label="Log out of admin panel"
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-sm font-medium"
                 >
                     <LogOut size={16} />
@@ -131,10 +180,12 @@ export const AdminDashboard = () => {
 
             <div className="flex">
                 {/* Sidebar */}
-                <nav className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-[calc(100vh-73px)] p-4 hidden md:block">
+                <nav role="tablist" aria-label="Admin sections" className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-[calc(100vh-73px)] p-4 hidden md:block">
                     <div className="space-y-1">
                         {tabs.map(tab => (
                             <button
+                                role="tab"
+                                aria-selected={activeTab === tab.id}
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
@@ -171,7 +222,7 @@ export const AdminDashboard = () => {
                 {/* Main Content */}
                 <main className="flex-1 p-6 pb-24 md:pb-6">
                     {error && (
-                        <div className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 text-red-700 dark:text-red-300">
+                        <div role="alert" className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 text-red-700 dark:text-red-300">
                             <AlertCircle size={18} />
                             <span className="text-sm">{error}</span>
                         </div>
@@ -183,30 +234,17 @@ export const AdminDashboard = () => {
                             <h2 className="text-2xl font-bold dark:text-white">Dashboard Overview</h2>
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                <StatCard
-                                    icon={Users}
-                                    label="Total Users"
-                                    value={stats.totalUsers.toString()}
-                                    color="blue"
-                                />
-                                <StatCard
-                                    icon={Eye}
-                                    label="Travelers"
-                                    value={stats.travelers.toString()}
-                                    color="emerald"
-                                />
-                                <StatCard
-                                    icon={Mountain}
-                                    label="Guides"
-                                    value={stats.guides.toString()}
-                                    color="purple"
-                                />
-                                <StatCard
-                                    icon={Wallet}
-                                    label="Total Balance"
-                                    value={formatCurrency(stats.totalBalance)}
-                                    color="amber"
-                                />
+                                <StatCard icon={Users} label="Total Users" value={stats.totalUsers.toString()} color="blue" />
+                                <StatCard icon={Eye} label="Travelers" value={stats.travelers.toString()} color="emerald" />
+                                <StatCard icon={Mountain} label="Guides" value={stats.guides.toString()} color="purple" />
+                                <StatCard icon={Wallet} label="Total Balance" value={formatCurrency(stats.totalBalance)} color="amber" />
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                <StatCard icon={DollarSign} label="Est. Revenue" value={formatCurrency(stats.totalRevenue)} color="emerald" />
+                                <StatCard icon={UserCheck} label="Verified Guides" value={stats.verifiedGuides.toString()} color="blue" />
+                                <StatCard icon={UserX} label="Banned Users" value={stats.bannedUsers.toString()} color="red" />
+                                <StatCard icon={Archive} label="Archived Trips" value={stats.archivedTrips.toString()} color="slate" />
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -221,7 +259,10 @@ export const AdminDashboard = () => {
                                             <div key={u.id} className="flex items-center gap-3">
                                                 <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full object-cover" />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium dark:text-white truncate">{u.name}</p>
+                                                    <p className="text-sm font-medium dark:text-white truncate">
+                                                        {u.name}
+                                                        {u.isBanned && <span className="ml-2 text-[10px] text-red-500 font-bold">BANNED</span>}
+                                                    </p>
                                                     <p className="text-xs text-slate-400">{u.email}</p>
                                                 </div>
                                                 <RoleBadge role={u.role} />
@@ -237,7 +278,7 @@ export const AdminDashboard = () => {
                                         Active Trips
                                     </h3>
                                     <div className="space-y-3">
-                                        {trips.slice(0, 5).map(trip => (
+                                        {trips.filter(t => !t.isArchived).slice(0, 5).map(trip => (
                                             <div key={trip.id} className="flex items-center gap-3">
                                                 <img src={trip.images[0]} alt={trip.title} className="w-10 h-10 rounded-lg object-cover" />
                                                 <div className="flex-1 min-w-0">
@@ -265,24 +306,22 @@ export const AdminDashboard = () => {
 
                             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table aria-label="All users table" className="w-full">
                                         <thead>
                                             <tr className="border-b border-slate-200 dark:border-slate-700">
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">User</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Email</th>
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Role</th>
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Balance</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Trips</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Rating</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Joined</th>
+                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Status</th>
+                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {users.map(u => (
-                                                <tr key={u.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                <tr key={u.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${u.isBanned ? 'bg-red-50/50 dark:bg-red-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
-                                                            <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full object-cover" />
+                                                            <img src={u.avatar} alt={u.name} className={`w-8 h-8 rounded-full object-cover ${u.isBanned ? 'opacity-50 grayscale' : ''}`} />
                                                             <div>
                                                                 <p className="text-sm font-medium dark:text-white">{u.name}</p>
                                                                 {u.isVerified && (
@@ -293,12 +332,42 @@ export const AdminDashboard = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{u.email}</td>
                                                     <td className="p-4"><RoleBadge role={u.role} /></td>
                                                     <td className="p-4 text-sm font-medium dark:text-white">{formatCurrency(u.walletBalance)}</td>
-                                                    <td className="p-4 text-sm text-slate-600 dark:text-slate-300">{u.completedTrips}</td>
-                                                    <td className="p-4 text-sm text-slate-600 dark:text-slate-300">{u.rating > 0 ? u.rating.toFixed(1) : '—'}</td>
-                                                    <td className="p-4 text-sm text-slate-400">{u.memberSince}</td>
+                                                    <td className="p-4">
+                                                        {u.isBanned ? (
+                                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">Banned</span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Active</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Ban/Unban */}
+                                                            <button
+                                                                onClick={() => handleBanUser(u.id, !u.isBanned)}
+                                                                disabled={actionLoading === u.id}
+                                                                className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                                    u.isBanned
+                                                                        ? 'bg-green-50 dark:bg-green-900/30 text-green-600 hover:bg-green-100'
+                                                                        : 'bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100'
+                                                                }`}
+                                                                title={u.isBanned ? 'Unban user' : 'Ban user'}
+                                                            >
+                                                                {u.isBanned ? <ShieldCheck size={14} /> : <Ban size={14} />}
+                                                            </button>
+
+                                                            {/* Switch Role */}
+                                                            <button
+                                                                onClick={() => handleChangeRole(u.id, u.role)}
+                                                                disabled={actionLoading === u.id}
+                                                                className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 hover:bg-blue-100 transition-colors"
+                                                                title={`Switch to ${u.role === 'traveler' ? 'guide' : 'traveler'}`}
+                                                            >
+                                                                <ArrowRightLeft size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -319,52 +388,77 @@ export const AdminDashboard = () => {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-2xl font-bold dark:text-white">All Trips</h2>
-                                <span className="text-sm text-slate-400">{trips.length} total</span>
+                                <span className="text-sm text-slate-400">{trips.length} total ({trips.filter(t => t.isArchived).length} archived)</span>
                             </div>
 
                             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table aria-label="All trips table" className="w-full">
                                         <thead>
                                             <tr className="border-b border-slate-200 dark:border-slate-700">
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Trip</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Location</th>
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Category</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Difficulty</th>
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Price</th>
                                                 <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Bookings</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Rating</th>
-                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Date</th>
+                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Status</th>
+                                                <th className="text-left p-4 text-xs font-medium text-slate-500 uppercase">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {trips.map(trip => (
-                                                <tr key={trip.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                <tr key={trip.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${trip.isArchived ? 'bg-amber-50/50 dark:bg-amber-900/10 opacity-70' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
                                                             <img src={trip.images[0]} alt={trip.title} className="w-10 h-10 rounded-lg object-cover" />
-                                                            <p className="text-sm font-medium dark:text-white max-w-[200px] truncate">{trip.title}</p>
+                                                            <div>
+                                                                <p className="text-sm font-medium dark:text-white max-w-[200px] truncate">{trip.title}</p>
+                                                                <p className="text-xs text-slate-400">{trip.location}</p>
+                                                            </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{trip.location}</td>
                                                     <td className="p-4">
                                                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 capitalize">
                                                             {trip.category}
                                                         </span>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <DifficultyBadge difficulty={trip.difficulty} />
                                                     </td>
                                                     <td className="p-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(trip.price)}</td>
                                                     <td className="p-4 text-sm dark:text-white">
                                                         <span className="font-medium">{trip.bookedSeats}</span>
                                                         <span className="text-slate-400">/{trip.maxSeats}</span>
                                                     </td>
-                                                    <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
-                                                        {trip.averageRating ? trip.averageRating.toFixed(1) : '—'}
+                                                    <td className="p-4">
+                                                        {trip.isArchived ? (
+                                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Archived</span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Active</span>
+                                                        )}
                                                     </td>
-                                                    <td className="p-4 text-sm text-slate-400">
-                                                        {new Date(trip.startDate).toLocaleDateString()}
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Archive/Restore */}
+                                                            <button
+                                                                onClick={() => handleArchiveTrip(trip.id, !trip.isArchived)}
+                                                                disabled={actionLoading === trip.id}
+                                                                className={`p-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                                    trip.isArchived
+                                                                        ? 'bg-green-50 dark:bg-green-900/30 text-green-600 hover:bg-green-100'
+                                                                        : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-100'
+                                                                }`}
+                                                                title={trip.isArchived ? 'Restore trip' : 'Archive trip'}
+                                                            >
+                                                                {trip.isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+                                                            </button>
+
+                                                            {/* Delete */}
+                                                            <button
+                                                                onClick={() => handleDeleteTrip(trip.id)}
+                                                                disabled={actionLoading === trip.id}
+                                                                className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 transition-colors"
+                                                                title="Delete trip permanently"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -392,11 +486,14 @@ export const AdminDashboard = () => {
                             {guides.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {guides.map(g => (
-                                        <div key={g.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700">
+                                        <div key={g.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 ${g.isBanned ? 'opacity-60 border-red-300 dark:border-red-800' : ''}`}>
                                             <div className="flex items-center gap-3 mb-4">
                                                 <img src={g.avatar} alt={g.name} className="w-12 h-12 rounded-full object-cover" />
-                                                <div>
-                                                    <p className="font-semibold dark:text-white">{g.name}</p>
+                                                <div className="flex-1">
+                                                    <p className="font-semibold dark:text-white">
+                                                        {g.name}
+                                                        {g.isBanned && <span className="ml-1 text-[10px] text-red-500 font-bold">BANNED</span>}
+                                                    </p>
                                                     <p className="text-xs text-slate-400">{g.email}</p>
                                                 </div>
                                             </div>
@@ -414,7 +511,35 @@ export const AdminDashboard = () => {
                                                     <p className="font-bold dark:text-white">{g.rating > 0 ? g.rating.toFixed(1) : '—'}</p>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 flex items-center justify-between">
+
+                                            {/* Admin Actions */}
+                                            <div className="mt-4 flex items-center gap-2">
+                                                <button
+                                                    onClick={() => handleVerifyGuide(g.id, !g.isVerified)}
+                                                    disabled={actionLoading === g.id}
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                                                        g.isVerified
+                                                            ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-100'
+                                                            : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-100'
+                                                    }`}
+                                                >
+                                                    {g.isVerified ? <><ShieldOff size={12} /> Unverify</> : <><ShieldCheck size={12} /> Verify</>}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleBanUser(g.id, !g.isBanned)}
+                                                    disabled={actionLoading === g.id}
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                                                        g.isBanned
+                                                            ? 'bg-green-50 dark:bg-green-900/30 text-green-600 hover:bg-green-100'
+                                                            : 'bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100'
+                                                    }`}
+                                                >
+                                                    {g.isBanned ? <><ShieldCheck size={12} /> Unban</> : <><Ban size={12} /> Ban</>}
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-2 flex items-center justify-between">
                                                 <span className="text-xs text-slate-400">Since {g.memberSince}</span>
                                                 {g.isVerified ? (
                                                     <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -448,13 +573,15 @@ const StatCard = ({ icon: Icon, label, value, color }: {
     icon: React.ElementType;
     label: string;
     value: string;
-    color: 'blue' | 'emerald' | 'purple' | 'amber';
+    color: 'blue' | 'emerald' | 'purple' | 'amber' | 'red' | 'slate';
 }) => {
     const colors = {
         blue: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600',
         emerald: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600',
         purple: 'bg-purple-50 dark:bg-purple-900/30 text-purple-600',
         amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-600',
+        red: 'bg-red-50 dark:bg-red-900/30 text-red-600',
+        slate: 'bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400',
     };
 
     return (
@@ -476,19 +603,6 @@ const RoleBadge = ({ role }: { role: string }) => {
     return (
         <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[role] || 'bg-slate-100 text-slate-600'}`}>
             {role}
-        </span>
-    );
-};
-
-const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
-    const styles: Record<string, string> = {
-        easy: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-        moderate: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
-        hard: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    };
-    return (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${styles[difficulty] || ''}`}>
-            {difficulty}
         </span>
     );
 };

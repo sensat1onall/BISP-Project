@@ -30,6 +30,9 @@ export const Home = ({ showBooked = false }: { showBooked?: boolean }) => {
     ];
 
     const filteredTrips = trips.filter(trip => {
+        // Hide archived trips from public view (admin can still see them in admin panel)
+        if (trip.isArchived && user.role !== 'admin') return false;
+
         if (showBooked) {
             const userBookings = bookings.filter(b => b.travelerId === user.id);
             return userBookings.some(b => b.tripId === trip.id);
