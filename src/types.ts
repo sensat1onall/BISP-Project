@@ -17,6 +17,25 @@ export interface User {
     memberSince: string;
 }
 
+export type GuideApplicationStatus = 'none' | 'pending' | 'approved' | 'rejected';
+
+export interface GuideApplication {
+    id: string;
+    userId: string;
+    fullName: string;
+    surname: string;
+    age: number;
+    gender: string;
+    experience: string;
+    status: 'pending' | 'approved' | 'rejected';
+    createdAt: string;
+    reviewedAt?: string;
+    // Joined from profiles for admin view
+    userName?: string;
+    userAvatar?: string;
+    userEmail?: string;
+}
+
 export interface TripRating {
     id: string;
     raterId: string;    // User who rated

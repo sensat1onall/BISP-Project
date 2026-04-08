@@ -7,13 +7,13 @@ import { ArrowUpRight } from 'lucide-react';
 import {
     Settings, CreditCard, ChevronRight, LogOut, CheckCircle2,
     Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck,
-    Edit3, X, Save
+    Edit3, X, Save, Clock, XCircle, Loader2
 } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchRole, withdrawFunds, logout, updateUser, bookings, trips } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchToTraveler, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips } = useApp();
     const t = translations[language].profile;
     const commonT = translations[language].common;
     const walletT = translations[language].wallet;
@@ -21,6 +21,9 @@ export const Profile = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(user.name);
+    const [showGuideForm, setShowGuideForm] = useState(false);
+    const [guideForm, setGuideForm] = useState({ fullName: '', surname: '', age: '', gender: '', experience: '' });
+    const [isSubmittingApp, setIsSubmittingApp] = useState(false);
 
     const handleWithdraw = () => {
         if (window.confirm(walletT.withdrawConfirm)) {
@@ -162,18 +165,62 @@ export const Profile = () => {
 
                         {/* Menu */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                            <button
-                                onClick={switchRole}
-                                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
-                                        <LogOut size={18} />
+                            {/* Guide Role Section */}
+                            {user.role === 'guide' ? (
+                                <button
+                                    onClick={switchToTraveler}
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
+                                            <LogOut size={18} />
+                                        </div>
+                                        <span className="font-medium dark:text-white text-sm">{t.travelerMode}</span>
                                     </div>
-                                    <span className="font-medium dark:text-white text-sm">{user.role === 'guide' ? t.travelerMode : t.guideMode}</span>
+                                    <ChevronRight size={18} className="text-slate-400" />
+                                </button>
+                            ) : guideApplicationStatus === 'pending' ? (
+                                <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg">
+                                            <Clock size={18} />
+                                        </div>
+                                        <div>
+                                            <span className="font-medium dark:text-white text-sm block">Guide Application Pending</span>
+                                            <span className="text-xs text-slate-400">Waiting for admin review</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <ChevronRight size={18} className="text-slate-400" />
-                            </button>
+                            ) : guideApplicationStatus === 'rejected' ? (
+                                <button
+                                    onClick={() => setShowGuideForm(true)}
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg">
+                                            <XCircle size={18} />
+                                        </div>
+                                        <div>
+                                            <span className="font-medium dark:text-white text-sm block">Application Rejected</span>
+                                            <span className="text-xs text-slate-400">Tap to re-apply</span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={18} className="text-slate-400" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowGuideForm(true)}
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
+                                            <ShieldCheck size={18} />
+                                        </div>
+                                        <span className="font-medium dark:text-white text-sm">Apply to Become a Guide</span>
+                                    </div>
+                                    <ChevronRight size={18} className="text-slate-400" />
+                                </button>
+                            )}
 
                             <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-3">
@@ -266,6 +313,101 @@ export const Profile = () => {
                                 {commonT.confirm}
                             </MetalButton>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Guide Application Modal */}
+            {showGuideForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={() => setShowGuideForm(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+                        <h2 className="text-xl font-bold dark:text-white mb-1">Apply to Become a Guide</h2>
+                        <p className="text-xs text-slate-400 mb-5">Fill in your details. An admin will review your application.</p>
+
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setIsSubmittingApp(true);
+                            const success = await submitGuideApplication({
+                                fullName: guideForm.fullName,
+                                surname: guideForm.surname,
+                                age: Number(guideForm.age),
+                                gender: guideForm.gender,
+                                experience: guideForm.experience,
+                            });
+                            setIsSubmittingApp(false);
+                            if (success) setShowGuideForm(false);
+                        }} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">First Name (as in ID)</label>
+                                    <input
+                                        required
+                                        value={guideForm.fullName}
+                                        onChange={e => setGuideForm(p => ({ ...p, fullName: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        placeholder="Aziz"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Surname (as in ID)</label>
+                                    <input
+                                        required
+                                        value={guideForm.surname}
+                                        onChange={e => setGuideForm(p => ({ ...p, surname: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        placeholder="Karimov"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Age</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        min={18}
+                                        max={70}
+                                        value={guideForm.age}
+                                        onChange={e => setGuideForm(p => ({ ...p, age: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        placeholder="25"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Gender</label>
+                                    <select
+                                        required
+                                        value={guideForm.gender}
+                                        onChange={e => setGuideForm(p => ({ ...p, gender: e.target.value }))}
+                                        className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                    >
+                                        <option value="">Select</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Guiding Experience</label>
+                                <textarea
+                                    required
+                                    value={guideForm.experience}
+                                    onChange={e => setGuideForm(p => ({ ...p, experience: e.target.value }))}
+                                    rows={4}
+                                    className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                                    placeholder="Describe your experience with outdoor activities, trips, or group management..."
+                                />
+                            </div>
+
+                            <MetalButton variant="primary" type="submit" disabled={isSubmittingApp} className="w-full">
+                                {isSubmittingApp ? <><Loader2 size={16} className="animate-spin mr-2" /> Submitting...</> : 'Submit Application'}
+                            </MetalButton>
+                        </form>
                     </div>
                 </div>
             )}

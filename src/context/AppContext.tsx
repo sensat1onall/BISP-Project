@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { User, Trip, Language, Theme, Booking, TripRating } from '../types';
+import { User, Trip, Language, Theme, Booking, TripRating, GuideApplicationStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { getChatWelcomeMessage } from '../lib/gemini';
 
@@ -40,7 +40,9 @@ interface AppContextType {
     theme: Theme;
     setLanguage: (lang: Language) => void;
     setTheme: (theme: Theme) => void;
-    switchRole: () => void;
+    switchToTraveler: () => void;
+    guideApplicationStatus: GuideApplicationStatus;
+    submitGuideApplication: (data: { fullName: string; surname: string; age: number; gender: string; experience: string }) => Promise<boolean>;
     bookTrip: (tripId: string) => boolean;
     addTrip: (trip: Trip) => void;
     deleteTrip: (tripId: string) => boolean;
@@ -59,6 +61,8 @@ interface AppContextType {
     adminDeleteTrip: (tripId: string) => Promise<void>;
     adminVerifyGuide: (userId: string, verify: boolean) => Promise<void>;
     adminChangeRole: (userId: string, newRole: 'traveler' | 'guide') => Promise<void>;
+    adminApproveApplication: (appId: string, userId: string) => Promise<void>;
+    adminRejectApplication: (appId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -125,6 +129,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [trips, setTrips] = useState<Trip[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
+    const [guideApplicationStatus, setGuideApplicationStatus] = useState<GuideApplicationStatus>('none');
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [language, setLanguageState] = useState<Language>('en');
     const [theme, setThemeState] = useState<Theme>('system');
@@ -193,6 +198,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 loadProfile(session.user.id).then((profile) => {
                     setIsAuthenticated(true);
                     setIsAuthLoading(false);
+                    loadGuideApplicationStatus(session.user.id);
                     if (profile) {
                         setNotifications([{
                             id: 'n1',
@@ -327,10 +333,51 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // --- User ---
 
-    const switchRole = async () => {
-        const newRole = user.role === 'traveler' ? 'guide' : 'traveler';
-        await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
-        setUser(prev => ({ ...prev, role: newRole }));
+    // Guide can switch back to traveler mode (they earned guide access)
+    const switchToTraveler = async () => {
+        if (user.role !== 'guide') return;
+        await supabase.from('profiles').update({ role: 'traveler' }).eq('id', user.id);
+        setUser(prev => ({ ...prev, role: 'traveler' }));
+    };
+
+    // Load guide application status for current user
+    const loadGuideApplicationStatus = async (userId: string) => {
+        const { data } = await supabase
+            .from('guide_applications')
+            .select('status')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (data && data.length > 0) {
+            setGuideApplicationStatus(data[0].status as GuideApplicationStatus);
+        } else {
+            setGuideApplicationStatus('none');
+        }
+    };
+
+    // Submit guide application
+    const submitGuideApplication = async (data: {
+        fullName: string; surname: string; age: number; gender: string; experience: string;
+    }): Promise<boolean> => {
+        const { error } = await supabase.from('guide_applications').insert({
+            user_id: user.id,
+            full_name: data.fullName,
+            surname: data.surname,
+            age: data.age,
+            gender: data.gender,
+            experience: data.experience,
+            status: 'pending',
+        });
+
+        if (error) {
+            console.error('Guide application error:', error);
+            return false;
+        }
+
+        setGuideApplicationStatus('pending');
+        addNotification('Your guide application has been submitted! An admin will review it shortly.');
+        return true;
     };
 
     const updateUser = async (updates: Partial<User>) => {
@@ -598,6 +645,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addNotification(`User role changed to ${newRole}.`);
     };
 
+    const adminApproveApplication = async (appId: string, userId: string) => {
+        await supabase.from('guide_applications').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', appId);
+        await supabase.from('profiles').update({ role: 'guide' }).eq('id', userId);
+        addNotification('Guide application approved. User is now a guide.');
+    };
+
+    const adminRejectApplication = async (appId: string) => {
+        await supabase.from('guide_applications').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', appId);
+        addNotification('Guide application rejected.');
+    };
+
     return (
         <AppContext.Provider value={{
             user,
@@ -614,7 +672,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             theme,
             setLanguage,
             setTheme,
-            switchRole,
+            switchToTraveler,
+            guideApplicationStatus,
+            submitGuideApplication,
             bookTrip,
             addTrip,
             deleteTrip,
@@ -632,6 +692,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             adminDeleteTrip,
             adminVerifyGuide,
             adminChangeRole,
+            adminApproveApplication,
+            adminRejectApplication,
         }}>
             {children}
         </AppContext.Provider>

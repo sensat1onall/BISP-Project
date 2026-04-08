@@ -17,6 +17,19 @@ export const CreateTrip = () => {
     const t = translations[language].create;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Guard: only guides can create trips
+    if (user.role !== 'guide') {
+        return (
+            <div className="py-20 text-center">
+                <p className="text-xl font-semibold dark:text-white mb-2">Guide Access Required</p>
+                <p className="text-slate-400 text-sm mb-4">You need to be an approved guide to create trips.</p>
+                <button onClick={() => navigate('/profile')} className="text-emerald-600 hover:underline text-sm">
+                    Go to Profile to apply
+                </button>
+            </div>
+        );
+    }
+
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLoadingWeather, setIsLoadingWeather] = useState(false);
     const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);

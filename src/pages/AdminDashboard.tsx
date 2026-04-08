@@ -6,13 +6,15 @@ import { formatCurrency } from '../utils/format';
 import {
     Users, Map, ShieldCheck, Wallet, LogOut, TrendingUp,
     Eye, UserCheck, Mountain, Loader2, AlertCircle,
-    Ban, Archive, ArchiveRestore, Trash2, ShieldOff, ArrowRightLeft, DollarSign, UserX
+    Ban, Archive, ArchiveRestore, Trash2, ShieldOff, ArrowRightLeft, DollarSign, UserX,
+    ClipboardCheck, CheckCircle, XCircle
 } from 'lucide-react';
+import { GuideApplication } from '../types';
 
-type Tab = 'overview' | 'users' | 'trips' | 'guides';
+type Tab = 'overview' | 'users' | 'trips' | 'guides' | 'applications';
 
 export const AdminDashboard = () => {
-    const { user, logout, trips, adminBanUser, adminArchiveTrip, adminDeleteTrip, adminVerifyGuide, adminChangeRole } = useApp();
+    const { user, logout, trips, adminBanUser, adminArchiveTrip, adminDeleteTrip, adminVerifyGuide, adminChangeRole, adminApproveApplication, adminRejectApplication } = useApp();
     const navigate = useNavigate();
 
     interface AdminUser {
@@ -44,6 +46,7 @@ export const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [stats, setStats] = useState<AdminStats | null>(null);
+    const [applications, setApplications] = useState<GuideApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -87,6 +90,35 @@ export const AdminDashboard = () => {
                 totalRevenue: revenue,
                 archivedTrips: archivedCount,
             });
+
+            // Load guide applications
+            const { data: apps } = await supabase
+                .from('guide_applications')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (apps) {
+                const mappedApps: GuideApplication[] = await Promise.all(
+                    apps.map(async (a: Record<string, unknown>) => {
+                        const appUser = (profiles || []).find((p: Record<string, unknown>) => p.id === a.user_id);
+                        return {
+                            id: a.id as string,
+                            userId: a.user_id as string,
+                            fullName: a.full_name as string,
+                            surname: a.surname as string,
+                            age: Number(a.age),
+                            gender: a.gender as string,
+                            experience: a.experience as string,
+                            status: a.status as 'pending' | 'approved' | 'rejected',
+                            createdAt: a.created_at as string,
+                            reviewedAt: a.reviewed_at as string || undefined,
+                            userName: appUser ? (appUser as Record<string, unknown>).name as string : 'Unknown',
+                            userAvatar: appUser ? (appUser as Record<string, unknown>).avatar as string : '',
+                        };
+                    })
+                );
+                setApplications(mappedApps);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load data');
         } finally {
@@ -142,7 +174,25 @@ export const AdminDashboard = () => {
         { id: 'users', label: 'Users', icon: Users },
         { id: 'trips', label: 'Trips', icon: Map },
         { id: 'guides', label: 'Guides', icon: ShieldCheck },
+        { id: 'applications', label: 'Applications', icon: ClipboardCheck },
     ];
+
+    const pendingApps = applications.filter(a => a.status === 'pending');
+
+    const handleApproveApp = async (appId: string, userId: string) => {
+        setActionLoading(appId);
+        await adminApproveApplication(appId, userId);
+        setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'approved' as const } : a));
+        setActionLoading(null);
+        loadData();
+    };
+
+    const handleRejectApp = async (appId: string) => {
+        setActionLoading(appId);
+        await adminRejectApplication(appId);
+        setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'rejected' as const } : a));
+        setActionLoading(null);
+    };
 
     if (loading) {
         return (
@@ -557,6 +607,89 @@ export const AdminDashboard = () => {
                                     <ShieldCheck size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                                     <p className="text-slate-400">No guides registered yet</p>
                                     <p className="text-xs text-slate-400 mt-1">Travelers: {travelers.length}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Applications Tab */}
+                    {activeTab === 'applications' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-bold dark:text-white">Guide Applications</h2>
+                                <span className="text-sm text-slate-400">{pendingApps.length} pending</span>
+                            </div>
+
+                            {applications.length > 0 ? (
+                                <div className="space-y-4">
+                                    {applications.map(app => (
+                                        <div key={app.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 ${app.status === 'approved' ? 'border-emerald-300 dark:border-emerald-800' : app.status === 'rejected' ? 'border-red-300 dark:border-red-800 opacity-60' : ''}`}>
+                                            <div className="flex items-start gap-4">
+                                                <img src={app.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userName || '')}&background=10b981&color=fff`} alt={app.userName} className="w-12 h-12 rounded-full object-cover" />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div>
+                                                            <p className="font-semibold dark:text-white">{app.userName}</p>
+                                                            <p className="text-xs text-slate-400">Applied {new Date(app.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                                                            app.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                                            : app.status === 'approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                        }`}>{app.status}</span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
+                                                            <p className="text-[10px] text-slate-400 uppercase">Legal Name</p>
+                                                            <p className="text-sm font-medium dark:text-white">{app.fullName} {app.surname}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
+                                                            <p className="text-[10px] text-slate-400 uppercase">Age</p>
+                                                            <p className="text-sm font-medium dark:text-white">{app.age}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
+                                                            <p className="text-[10px] text-slate-400 uppercase">Gender</p>
+                                                            <p className="text-sm font-medium dark:text-white capitalize">{app.gender}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
+                                                            <p className="text-[10px] text-slate-400 uppercase">User ID</p>
+                                                            <p className="text-sm font-mono dark:text-white truncate">{app.userId.slice(0, 8)}...</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 mb-3">
+                                                        <p className="text-[10px] text-slate-400 uppercase mb-1">Experience</p>
+                                                        <p className="text-sm text-slate-600 dark:text-slate-300">{app.experience}</p>
+                                                    </div>
+
+                                                    {app.status === 'pending' && (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleApproveApp(app.id, app.userId)}
+                                                                disabled={actionLoading === app.id}
+                                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl text-xs font-medium hover:bg-emerald-100 transition-colors"
+                                                            >
+                                                                <CheckCircle size={14} /> Approve
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRejectApp(app.id)}
+                                                                disabled={actionLoading === app.id}
+                                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 transition-colors"
+                                                            >
+                                                                <XCircle size={14} /> Reject
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
+                                    <ClipboardCheck size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+                                    <p className="text-slate-400">No guide applications yet</p>
                                 </div>
                             )}
                         </div>
