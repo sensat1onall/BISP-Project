@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
 import { formatCurrency } from '../utils/format';
@@ -7,7 +7,7 @@ import { ArrowUpRight } from 'lucide-react';
 import {
     Settings, CreditCard, ChevronRight, LogOut, CheckCircle2,
     Globe, Moon, Sun, Monitor, ShieldCheck, Map, CheckCheck,
-    Edit3, X, Save, Clock, XCircle, Loader2
+    Edit3, X, Save, Clock, XCircle, Loader2, Camera
 } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
@@ -25,6 +25,18 @@ export const Profile = () => {
     const [guideForm, setGuideForm] = useState({ fullName: '', surname: '', age: '', gender: '', experience: '' });
     const [isSubmittingApp, setIsSubmittingApp] = useState(false);
     const [appError, setAppError] = useState('');
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            updateUser({ avatar: base64 });
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleWithdraw = () => {
         if (window.confirm(walletT.withdrawConfirm)) {
@@ -50,14 +62,32 @@ export const Profile = () => {
                     {/* Left: Profile Card */}
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                            <div className="h-28 bg-gradient-to-r from-emerald-600 to-teal-500 relative" />
+                            <div className={`h-28 relative ${user.role === 'guide' ? 'bg-gradient-to-r from-blue-600 to-indigo-500' : 'bg-gradient-to-r from-emerald-600 to-teal-500'}`}>
+                                {user.role === 'guide' && (
+                                    <div className="absolute top-3 right-3 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-[10px] font-bold text-white">
+                                        GUIDE
+                                    </div>
+                                )}
+                            </div>
                             <div className="px-6 pb-6 -mt-12">
                                 <div className="flex items-end justify-between mb-3">
-                                    <img
-                                        src={user.avatar}
-                                        alt={user.name}
-                                        className="w-20 h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md object-cover"
-                                    />
+                                    <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                                        <img
+                                            src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10b981&color=fff&size=80`}
+                                            alt={user.name}
+                                            className="w-20 h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Camera size={20} className="text-white" />
+                                        </div>
+                                        <input
+                                            ref={avatarInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleAvatarUpload}
+                                            className="hidden"
+                                        />
+                                    </div>
                                     {user.isVerified && (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 mb-1">
                                             <ShieldCheck size={12} className="mr-1" />
