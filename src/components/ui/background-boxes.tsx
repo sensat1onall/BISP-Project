@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
-    const rows = new Array(100).fill(1);
-    const cols = new Array(80).fill(1);
+    const rows = new Array(150).fill(1);
+    const cols = new Array(100).fill(1);
 
     const colors = [
         "rgb(52 211 153)",  // emerald-400
@@ -25,18 +25,18 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
     return (
         <div
             style={{
-                transform: `translate(-20%,-40%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
+                transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
             }}
             className={cn(
-                "absolute -left-[10%] p-4 -top-[20%] flex w-[200%] h-[200%] z-0",
+                "absolute -left-[40%] p-4 -top-[40%] flex w-[300%] h-[300%] z-0",
                 className
             )}
             {...rest}
         >
             {rows.map((_, i) => (
-                <motion.div
+                <div
                     key={`row${i}`}
-                    className="w-16 h-8 border-l border-slate-300/40 dark:border-slate-700/50 relative"
+                    className="w-16 h-8 border-l border-slate-300/30 dark:border-slate-700/40 relative"
                 >
                     {cols.map((_, j) => (
                         <motion.div
@@ -48,7 +48,7 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
                                 transition: { duration: 2 },
                             }}
                             key={`col${j}`}
-                            className="w-16 h-8 border-r border-t border-slate-300/40 dark:border-slate-700/50 relative"
+                            className="w-16 h-8 border-r border-t border-slate-300/30 dark:border-slate-700/40 relative"
                         >
                             {j % 2 === 0 && i % 2 === 0 ? (
                                 <svg
@@ -57,7 +57,7 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
                                     viewBox="0 0 24 24"
                                     strokeWidth="1.5"
                                     stroke="currentColor"
-                                    className="absolute h-6 w-10 -top-[14px] -left-[22px] text-slate-300/40 dark:text-slate-700/50 stroke-[1px] pointer-events-none"
+                                    className="absolute h-6 w-10 -top-[14px] -left-[22px] text-slate-300/30 dark:text-slate-700/40 stroke-[1px] pointer-events-none"
                                 >
                                     <path
                                         strokeLinecap="round"
@@ -68,7 +68,7 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
                             ) : null}
                         </motion.div>
                     ))}
-                </motion.div>
+                </div>
             ))}
         </div>
     );
