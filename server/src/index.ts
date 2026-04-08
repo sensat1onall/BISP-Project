@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -12,6 +13,21 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Security headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.supabase.co"],
+            connectSrc: ["'self'", "https://*.supabase.co", "https://generativelanguage.googleapis.com", process.env.FRONTEND_URL || 'http://localhost:5173'],
+            fontSrc: ["'self'"],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
 
 app.use(cors({
     origin: [

@@ -11,6 +11,12 @@ if (API_KEY) {
     genAI = new GoogleGenerativeAI(API_KEY);
 }
 
+// Input sanitization to prevent injection attacks
+function sanitizeInput(input: unknown): string {
+    if (typeof input !== 'string') return '';
+    return input.trim().slice(0, 500).replace(/[<>]/g, '');
+}
+
 // Simple in-memory rate limiting
 const rateLimiter = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 20; // requests per window
@@ -46,7 +52,8 @@ router.post('/generate-trip', async (req: Request, res: Response): Promise<void>
         return;
     }
 
-    const { title, location } = req.body;
+    const title = sanitizeInput(req.body.title);
+    const location = sanitizeInput(req.body.location);
     if (!title || !location) {
         res.status(400).json({ error: 'Title and location are required' });
         return;
@@ -98,7 +105,8 @@ router.post('/weather', async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
-    const { location, startDate, endDate } = req.body;
+    const location = sanitizeInput(req.body.location);
+    const { startDate, endDate } = req.body;
     if (!location || !startDate || !endDate) {
         res.status(400).json({ error: 'Location, startDate, and endDate are required' });
         return;
@@ -162,7 +170,7 @@ router.post('/weather-forecast', async (req: Request, res: Response): Promise<vo
         return;
     }
 
-    const { location } = req.body;
+    const location = sanitizeInput(req.body.location);
     if (!location) {
         res.status(400).json({ error: 'Location is required' });
         return;
