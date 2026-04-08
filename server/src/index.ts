@@ -4,8 +4,6 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { aiRouter } from './routes/ai.js';
-import { authRouter } from './routes/auth.js';
-import { adminRouter } from './routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,9 +27,7 @@ app.use(express.json({ limit: '10mb' }));
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.use('/api/auth', authRouter);
 app.use('/api/ai', aiRouter);
-app.use('/api/admin', adminRouter);
 
 // Serve frontend build in production
 const distPath = join(__dirname, '../../dist');
