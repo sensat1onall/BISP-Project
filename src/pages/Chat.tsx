@@ -177,15 +177,31 @@ export const Chat = () => {
         };
     }, [selectedChatId]);
 
-    // Send message
+    // Send message with optimistic update
     const handleSend = async () => {
         if (!newMessage.trim() || !selectedChatId || sending) return;
 
         setSending(true);
         const content = newMessage.trim();
+        const tempId = crypto.randomUUID();
         setNewMessage('');
 
+        // Optimistically add to local state immediately
+        const optimisticMsg: ChatMessage = {
+            id: tempId,
+            chatId: selectedChatId,
+            senderId: user.id,
+            senderName: user.name,
+            senderAvatar: user.avatar,
+            content,
+            createdAt: new Date().toISOString(),
+            isAi: false,
+        };
+        setMessages(prev => [...prev, optimisticMsg]);
+
+        // Insert to database in background
         await supabase.from('chat_messages').insert({
+            id: tempId,
             chat_id: selectedChatId,
             sender_id: user.id,
             sender_name: user.name,
