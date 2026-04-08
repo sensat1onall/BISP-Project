@@ -187,9 +187,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Refresh profile from DB (used when admin changes role externally)
     const refreshProfile = useCallback(async () => {
-        if (!user.id) return;
-        await loadProfile(user.id);
-        await loadGuideApplicationStatus(user.id);
+        // Get user ID from Supabase session directly (most reliable source)
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || user.id;
+        if (!userId) return;
+        await loadProfile(userId);
+        await loadGuideApplicationStatus(userId);
     }, [user.id, loadProfile]);
 
     // --- Auth init ---
@@ -651,13 +654,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const adminApproveApplication = async (appId: string, userId: string) => {
-        await supabase.from('guide_applications').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', appId);
-        await supabase.from('profiles').update({ role: 'guide' }).eq('id', userId);
+        const { error: appErr } = await supabase.from('guide_applications').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', appId);
+        if (appErr) console.error('Failed to update application:', appErr);
+
+        const { error: roleErr } = await supabase.from('profiles').update({ role: 'guide' }).eq('id', userId);
+        if (roleErr) {
+            console.error('Failed to update user role:', roleErr);
+            addNotification('Error: Could not update user role. Check RLS policies.');
+            return;
+        }
         addNotification('Guide application approved. User is now a guide.');
     };
 
     const adminRejectApplication = async (appId: string) => {
-        await supabase.from('guide_applications').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', appId);
+        const { error } = await supabase.from('guide_applications').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', appId);
+        if (error) console.error('Failed to reject application:', error);
         addNotification('Guide application rejected.');
     };
 
