@@ -1,45 +1,51 @@
-# Uzbekistan P2P Travel Marketplace
+# SafarGo — Your Journey Starts Here
 
-This project is a React 19 + Vite application built with Tailwind CSS.
+A peer-to-peer travel marketplace connecting travelers with local guides across Uzbekistan. Built with React 19, Vite, Tailwind CSS, Supabase, and Express.
 
 ## Prerequisites
 
-**Node.js is required** to run this application. The environment it was generated in did not have Node.js installed, so you must install it manually.
+- [Node.js](https://nodejs.org/) (v18+)
+- A [Supabase](https://supabase.com/) project with auth and database configured
+- A [Gemini API key](https://aistudio.google.com/app/apikey) for AI features
 
-1.  Download and install Node.js from [nodejs.org](https://nodejs.org/).
-2.  Open a terminal in this directory.
+## Setup
 
-## Installation
-
-Run the following command to install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
+cd server && npm install && cd ..
 ```
 
-## Running the App
+2. Copy `.env.example` to `.env` and fill in:
 
-To start the development server:
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+3. Start the development servers:
 
 ```bash
-npm run dev
+npm run dev          # Frontend on http://localhost:5173
+cd server && npm run dev  # Backend on http://localhost:3001
 ```
 
-Then open the URL shown in the terminal (usually `http://localhost:5173`).
+## Production
 
-## Gemini API Key
-
-1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Copy `.env.example` to `.env`
-3. Replace `your_api_key_here` with your actual key
+```bash
+npm run build   # Builds frontend + backend
+npm start       # Serves everything from Express
+```
 
 ## Features
 
-- **Role Switching**: Switch between Traveler and Guide in Profile.
-- **AI Auto-Fill**: In "Add Trip", use AI to generate trip details.
-- **AI Weather**: Trip Details page shows AI-simulated weather.
-- **Wallet**: Book trips and withdraw funds.
-- **Localization**: Switch between English, Russian, and Uzbek.
-- **Theming**: Dark/Light mode support.
-
-Enjoy your adventure!
+- **Role Switching** — Switch between Traveler and Guide in your profile
+- **AI Auto-Fill** — Generate trip details with Gemini AI
+- **AI Weather** — Trip pages show AI-powered weather forecasts
+- **Wallet** — Book trips and manage funds
+- **Localization** — English, Russian, and Uzbek
+- **Theming** — Dark and light mode
+- **Google OAuth** — One-click sign-up with Google
+- **Admin Dashboard** — User stats, trip monitoring, guide verification
