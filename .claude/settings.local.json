@@ -14,7 +14,9 @@
       "Bash(curl -s \"https://aeuitntkfcyqvdpxeboz.supabase.co/auth/v1/settings\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFldWl0bnRrZmN5cXZkcHhlYm96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTc3MjAsImV4cCI6MjA5MTEzMzcyMH0.N1Vm4RmI3jcVtzzK2DdkLb8cEBLv4Bdm7k2NCKDsmOU\")",
       "Bash(curl -s \"https://safargo-production-84bb.up.railway.app/\")",
       "Bash(curl -s \"https://safargo-production-84bb.up.railway.app/assets/index-s1j8hwcc.js\")",
-      "Bash(grep -oP 'supabase[^\"]{0,50}')"
+      "Bash(grep -oP 'supabase[^\"]{0,50}')",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx vitest:*)"
     ]
   }
 }
