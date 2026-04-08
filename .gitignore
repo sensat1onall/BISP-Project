@@ -19,6 +19,11 @@ dist/
 .DS_Store
 Thumbs.db
 
+# TypeScript build info
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
 # logs
 *.log
 npm-debug.log*
