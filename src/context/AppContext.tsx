@@ -369,6 +369,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (!error) {
             setTrips(prev => [trip, ...prev]);
             addNotification(`Trip "${trip.title}" published successfully!`);
+
+            // Auto-create chat group for the guide's new trip
+            createOrJoinChatGroup(trip);
         }
     };
 
@@ -437,38 +440,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const createOrJoinChatGroup = async (trip: Trip) => {
         try {
             // Check if chat group already exists for this trip
-            const { data: existingGroup } = await supabase
+            const { data: existingGroups } = await supabase
                 .from('chat_groups')
                 .select('id')
-                .eq('trip_id', trip.id)
-                .single();
+                .eq('trip_id', trip.id);
 
             let chatId: string;
+            let isNewGroup = false;
 
-            if (existingGroup) {
-                chatId = existingGroup.id;
+            if (existingGroups && existingGroups.length > 0) {
+                chatId = existingGroups[0].id;
             } else {
-                // Create new chat group
-                const { data: newGroup, error } = await supabase
-                    .from('chat_groups')
-                    .insert({
-                        trip_id: trip.id,
-                        name: trip.title,
-                        image: trip.images[0] || '',
-                    })
-                    .select('id')
-                    .single();
+                // Create new chat group with client-generated ID
+                chatId = crypto.randomUUID();
+                isNewGroup = true;
 
-                if (error || !newGroup) return;
-                chatId = newGroup.id;
+                const { error } = await supabase.from('chat_groups').insert({
+                    id: chatId,
+                    trip_id: trip.id,
+                    name: trip.title,
+                    image: trip.images[0] || '',
+                });
+
+                if (error) {
+                    console.error('Failed to create chat group:', error);
+                    return;
+                }
 
                 // Add the guide as first member
-                await supabase.from('chat_members').upsert({
+                await supabase.from('chat_members').insert({
                     chat_id: chatId,
                     user_id: trip.guideId,
-                }, { onConflict: 'chat_id,user_id' });
+                });
+            }
 
-                // Generate and insert AI welcome message
+            // Add the current user as a member (if not the guide who was already added)
+            if (user.id !== trip.guideId) {
+                await supabase.from('chat_members').insert({
+                    chat_id: chatId,
+                    user_id: user.id,
+                }).then(({ error }) => {
+                    // Ignore duplicate key errors (user already a member)
+                    if (error && !error.message.includes('duplicate')) {
+                        console.error('Failed to add chat member:', error);
+                    }
+                });
+            }
+
+            // Generate AI welcome message for new groups
+            if (isNewGroup) {
                 getChatWelcomeMessage(trip.title, trip.location, trip.difficulty).then(async (message) => {
                     await supabase.from('chat_messages').insert({
                         chat_id: chatId,
@@ -480,14 +500,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     });
                 });
             }
-
-            // Add the current traveler as a member
-            await supabase.from('chat_members').upsert({
-                chat_id: chatId,
-                user_id: user.id,
-            }, { onConflict: 'chat_id,user_id' });
         } catch (err) {
-            console.error('Chat group creation error:', err);
+            console.error('Chat group error:', err);
         }
     };
 
