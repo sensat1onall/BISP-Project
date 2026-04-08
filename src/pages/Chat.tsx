@@ -32,6 +32,7 @@ export const Chat = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -44,11 +45,19 @@ export const Chat = () => {
     const loadChatGroups = useCallback(async () => {
         if (!user.id) return;
 
+        try {
         // Get all chat_ids the user is a member of
-        const { data: memberships } = await supabase
+        const { data: memberships, error: memberErr } = await supabase
             .from('chat_members')
             .select('chat_id')
             .eq('user_id', user.id);
+
+        if (memberErr) {
+            console.error('Chat load error:', memberErr);
+            setError('Could not load chats. Please try again.');
+            setLoading(false);
+            return;
+        }
 
         if (!memberships || memberships.length === 0) {
             setChatGroups([]);
@@ -99,6 +108,11 @@ export const Chat = () => {
 
         setChatGroups(previews);
         setLoading(false);
+        } catch (err) {
+            console.error('Chat load error:', err);
+            setError('Could not load chats. Please try again.');
+            setLoading(false);
+        }
     }, [user.id]);
 
     // Load messages for selected chat
@@ -235,13 +249,29 @@ export const Chat = () => {
 
     // ---- RENDER ----
 
-    // Empty state
     if (loading) {
         return (
             <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
                 <div className="text-center text-slate-400">
                     <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-3" />
                     <p className="text-sm">Loading chats...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+                <div className="text-center">
+                    <MessageCircle size={48} className="text-red-300 mx-auto mb-3" />
+                    <p className="text-sm text-red-500 mb-3">{error}</p>
+                    <button
+                        onClick={() => { setError(null); setLoading(true); loadChatGroups(); }}
+                        className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-xl hover:bg-emerald-700 transition-colors"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
