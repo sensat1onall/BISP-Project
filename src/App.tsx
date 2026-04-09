@@ -11,6 +11,7 @@ import { Chat } from './pages/Chat';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { Ticket } from './pages/Ticket';
 import { NotFound } from './pages/NotFound';
 
 const router = createBrowserRouter([
@@ -60,8 +61,13 @@ const router = createBrowserRouter([
                 element: <Profile />,
             },
             {
+                path: 'ticket/:bookingId',
+                element: <Ticket />,
+            },
+            {
                 path: 'chat',
                 element: <Chat />,
+                errorElement: <div className="p-20 text-center"><p className="text-xl font-semibold dark:text-white">Chat temporarily unavailable</p><a href="/" className="text-emerald-600 hover:underline text-sm mt-2 block">Go Home</a></div>,
             },
         ],
     },

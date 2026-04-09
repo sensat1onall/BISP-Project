@@ -309,9 +309,17 @@ export const TripDetails = () => {
                                 </button>
                             </div>
                         ) : booking ? (
-                            <MetalButton variant="success" disabled className="w-full">
-                                <CheckCircle size={20} className="mr-2" /> Booked
-                            </MetalButton>
+                            <div className="space-y-2">
+                                <MetalButton variant="success" disabled className="w-full">
+                                    <CheckCircle size={20} className="mr-2" /> Booked
+                                </MetalButton>
+                                <button
+                                    onClick={() => navigate(`/ticket/${booking.id}`)}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors border border-emerald-200 dark:border-emerald-800"
+                                >
+                                    View E-Ticket
+                                </button>
+                            </div>
                         ) : bookingStatus === 'success' ? (
                             <MetalButton variant="success" disabled className="w-full">
                                 <CheckCircle size={20} className="mr-2" /> {t.booked}

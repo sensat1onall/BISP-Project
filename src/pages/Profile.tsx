@@ -13,7 +13,7 @@ import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const Profile = () => {
-    const { user, language, theme, setTheme, setLanguage, switchToTraveler, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips, refreshProfile } = useApp();
+    const { user, language, theme, setTheme, setLanguage, switchToTraveler, switchToGuide, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips, refreshProfile } = useApp();
 
     // Refresh profile from DB on mount to catch admin changes (role, ban, etc.)
     useEffect(() => {
@@ -212,6 +212,19 @@ export const Profile = () => {
                                             <LogOut size={18} />
                                         </div>
                                         <span className="font-medium dark:text-white text-sm">{t.travelerMode}</span>
+                                    </div>
+                                    <ChevronRight size={18} className="text-slate-400" />
+                                </button>
+                            ) : guideApplicationStatus === 'approved' ? (
+                                <button
+                                    onClick={switchToGuide}
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
+                                            <ShieldCheck size={18} />
+                                        </div>
+                                        <span className="font-medium dark:text-white text-sm">Switch to Guide Mode</span>
                                     </div>
                                     <ChevronRight size={18} className="text-slate-400" />
                                 </button>

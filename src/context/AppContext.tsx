@@ -41,6 +41,7 @@ interface AppContextType {
     setLanguage: (lang: Language) => void;
     setTheme: (theme: Theme) => void;
     switchToTraveler: () => void;
+    switchToGuide: () => void;
     guideApplicationStatus: GuideApplicationStatus;
     submitGuideApplication: (data: { fullName: string; surname: string; age: number; gender: string; experience: string }) => Promise<boolean>;
     bookTrip: (tripId: string) => boolean;
@@ -349,6 +350,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (user.role !== 'guide') return;
         await supabase.from('profiles').update({ role: 'traveler' }).eq('id', user.id);
         setUser(prev => ({ ...prev, role: 'traveler' }));
+    };
+
+    // Previously approved guide can switch back to guide mode
+    const switchToGuide = async () => {
+        if (guideApplicationStatus !== 'approved') return;
+        await supabase.from('profiles').update({ role: 'guide' }).eq('id', user.id);
+        setUser(prev => ({ ...prev, role: 'guide' }));
     };
 
     // Load guide application status for current user
@@ -689,6 +697,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setLanguage,
             setTheme,
             switchToTraveler,
+            switchToGuide,
             guideApplicationStatus,
             submitGuideApplication,
             bookTrip,

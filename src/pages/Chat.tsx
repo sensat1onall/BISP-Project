@@ -117,11 +117,16 @@ export const Chat = () => {
 
     // Load messages for selected chat
     const loadMessages = useCallback(async (chatId: string) => {
-        const { data } = await supabase
+        const { data, error: msgErr } = await supabase
             .from('chat_messages')
             .select('*')
             .eq('chat_id', chatId)
             .order('created_at', { ascending: true });
+
+        if (msgErr) {
+            console.error('Messages load error:', msgErr);
+            return;
+        }
 
         if (data) {
             setMessages(data.map(m => ({
