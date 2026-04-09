@@ -21,7 +21,7 @@ export const Profile = () => {
     }, []);
     const t = translations[language].profile;
     const commonT = translations[language].common;
-    const walletT = translations[language].wallet;
+    void translations[language].wallet;
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -31,6 +31,62 @@ export const Profile = () => {
     const [isSubmittingApp, setIsSubmittingApp] = useState(false);
     const [appError, setAppError] = useState('');
     const avatarInputRef = useRef<HTMLInputElement>(null);
+
+    // Payment modals
+    const [showDeposit, setShowDeposit] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'humo' | 'uzcard'>('humo');
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [depositAmount, setDepositAmount] = useState('');
+    const [paymentProcessing, setPaymentProcessing] = useState(false);
+    const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+    const formatCardNumber = (val: string) => {
+        const digits = val.replace(/\D/g, '').slice(0, 16);
+        return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+    };
+
+    const formatExpiry = (val: string) => {
+        const digits = val.replace(/\D/g, '').slice(0, 4);
+        if (digits.length > 2) return digits.slice(0, 2) + '/' + digits.slice(2);
+        return digits;
+    };
+
+    const handleDeposit = async () => {
+        if (!cardNumber || !cardExpiry || !depositAmount) return;
+        setPaymentProcessing(true);
+        // Simulate payment processing (demo mode)
+        await new Promise(r => setTimeout(r, 2000));
+        const amount = Number(depositAmount);
+        if (amount > 0) {
+            updateUser({ walletBalance: user.walletBalance + amount });
+        }
+        setPaymentProcessing(false);
+        setPaymentSuccess(true);
+        setTimeout(() => {
+            setShowDeposit(false);
+            setPaymentSuccess(false);
+            setCardNumber('');
+            setCardExpiry('');
+            setDepositAmount('');
+        }, 1500);
+    };
+
+    const handleWithdrawToCard = async () => {
+        if (!cardNumber || !cardExpiry || user.walletBalance === 0) return;
+        setPaymentProcessing(true);
+        await new Promise(r => setTimeout(r, 2000));
+        withdrawFunds();
+        setPaymentProcessing(false);
+        setPaymentSuccess(true);
+        setTimeout(() => {
+            setShowWithdrawModal(false);
+            setPaymentSuccess(false);
+            setCardNumber('');
+            setCardExpiry('');
+        }, 1500);
+    };
 
     const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -43,11 +99,7 @@ export const Profile = () => {
         reader.readAsDataURL(file);
     };
 
-    const handleWithdraw = () => {
-        if (window.confirm(walletT.withdrawConfirm)) {
-            withdrawFunds();
-        }
-    };
+
 
     const handleSaveProfile = () => {
         if (editName.trim()) {
@@ -166,9 +218,15 @@ export const Profile = () => {
                                 </div>
                                 <CreditCard className="text-emerald-400" size={32} />
                             </div>
-                            <MetalButton variant="success" onClick={handleWithdraw} disabled={user.walletBalance === 0}>
-                                {t.withdraw}
-                            </MetalButton>
+                            <div className="flex gap-3">
+                                <MetalButton variant="primary" onClick={() => setShowDeposit(true)} className="flex-1">
+                                    Deposit
+                                </MetalButton>
+                                <MetalButton variant="success" onClick={() => setShowWithdrawModal(true)} disabled={user.walletBalance === 0} className="flex-1">
+                                    {t.withdraw}
+                                </MetalButton>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2 text-center">Demo mode — HUMO & UZCARD payments simulated</p>
                         </div>
 
                         {/* Transaction History */}
@@ -367,6 +425,166 @@ export const Profile = () => {
             )}
 
             {/* Guide Application Modal */}
+            {/* Deposit Modal */}
+            {showDeposit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+                        <button onClick={() => { setShowDeposit(false); setPaymentSuccess(false); }} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+
+                        {paymentSuccess ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCheck size={32} className="text-emerald-600" />
+                                </div>
+                                <p className="text-lg font-bold dark:text-white">Deposit Successful!</p>
+                                <p className="text-sm text-slate-400 mt-1">Funds added to your wallet</p>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-xl font-bold dark:text-white mb-1">Deposit Funds</h2>
+                                <p className="text-xs text-slate-400 mb-5">Demo mode — no real charges will be made</p>
+
+                                {/* Payment Method Selector */}
+                                <div className="flex gap-2 mb-5">
+                                    <button
+                                        onClick={() => setPaymentMethod('humo')}
+                                        className={`flex-1 py-3 px-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'humo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700'}`}
+                                    >
+                                        <p className="text-sm font-bold text-blue-600">HUMO</p>
+                                        <p className="text-[10px] text-slate-400">Uzbekistan</p>
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('uzcard')}
+                                        className={`flex-1 py-3 px-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'uzcard' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-slate-200 dark:border-slate-700'}`}
+                                    >
+                                        <p className="text-sm font-bold text-green-600">UZCARD</p>
+                                        <p className="text-[10px] text-slate-400">Uzbekistan</p>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Card Number</label>
+                                        <input
+                                            value={cardNumber}
+                                            onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+                                            placeholder={paymentMethod === 'humo' ? '9860 •••• •••• ••••' : '8600 •••• •••• ••••'}
+                                            className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono tracking-wider"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Expiry Date</label>
+                                            <input
+                                                value={cardExpiry}
+                                                onChange={e => setCardExpiry(formatExpiry(e.target.value))}
+                                                placeholder="MM/YY"
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Amount (UZS)</label>
+                                            <input
+                                                type="number"
+                                                value={depositAmount}
+                                                onChange={e => setDepositAmount(e.target.value)}
+                                                placeholder="500000"
+                                                min={1000}
+                                                className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <MetalButton
+                                        variant="primary"
+                                        onClick={handleDeposit}
+                                        disabled={paymentProcessing || !cardNumber || !cardExpiry || !depositAmount}
+                                        className="w-full"
+                                    >
+                                        {paymentProcessing ? <><Loader2 size={16} className="animate-spin mr-2" /> Processing...</> : `Deposit via ${paymentMethod.toUpperCase()}`}
+                                    </MetalButton>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Withdraw Modal */}
+            {showWithdrawModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+                        <button onClick={() => { setShowWithdrawModal(false); setPaymentSuccess(false); }} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+
+                        {paymentSuccess ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCheck size={32} className="text-emerald-600" />
+                                </div>
+                                <p className="text-lg font-bold dark:text-white">Withdrawal Successful!</p>
+                                <p className="text-sm text-slate-400 mt-1">{formatCurrency(user.walletBalance)} sent to your card</p>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-xl font-bold dark:text-white mb-1">Withdraw to Card</h2>
+                                <p className="text-xs text-slate-400 mb-2">Demo mode — no real transfer will be made</p>
+                                <p className="text-sm font-semibold text-emerald-600 mb-5">Available: {formatCurrency(user.walletBalance)}</p>
+
+                                {/* Payment Method Selector */}
+                                <div className="flex gap-2 mb-5">
+                                    <button
+                                        onClick={() => setPaymentMethod('humo')}
+                                        className={`flex-1 py-3 px-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'humo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700'}`}
+                                    >
+                                        <p className="text-sm font-bold text-blue-600">HUMO</p>
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('uzcard')}
+                                        className={`flex-1 py-3 px-4 rounded-xl border-2 text-center transition-all ${paymentMethod === 'uzcard' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-slate-200 dark:border-slate-700'}`}
+                                    >
+                                        <p className="text-sm font-bold text-green-600">UZCARD</p>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Card Number</label>
+                                        <input
+                                            value={cardNumber}
+                                            onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+                                            placeholder={paymentMethod === 'humo' ? '9860 •••• •••• ••••' : '8600 •••• •••• ••••'}
+                                            className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono tracking-wider"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Expiry Date</label>
+                                        <input
+                                            value={cardExpiry}
+                                            onChange={e => setCardExpiry(formatExpiry(e.target.value))}
+                                            placeholder="MM/YY"
+                                            className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono"
+                                        />
+                                    </div>
+
+                                    <MetalButton
+                                        variant="success"
+                                        onClick={handleWithdrawToCard}
+                                        disabled={paymentProcessing || !cardNumber || !cardExpiry || user.walletBalance === 0}
+                                        className="w-full"
+                                    >
+                                        {paymentProcessing ? <><Loader2 size={16} className="animate-spin mr-2" /> Processing...</> : `Withdraw ${formatCurrency(user.walletBalance)}`}
+                                    </MetalButton>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {showGuideForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
