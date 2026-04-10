@@ -1,3 +1,32 @@
+/**
+ * Register.tsx - The sign-up page for new SafarGo users.
+ *
+ * This page handles the registration flow with:
+ *   - Name, email, password, and confirm password fields
+ *   - Client-side password validation (min 6 chars, must match confirmation)
+ *   - Supabase Auth signup with email confirmation support
+ *   - Google OAuth signup (same as login - redirects to Google)
+ *   - An email confirmation screen (shown after successful registration)
+ *   - Theme toggle and animated background (same as Login page)
+ *
+ * Registration flow:
+ * 1. User fills in name, email, password, and confirm password
+ * 2. Client-side validation checks password length and match
+ * 3. handleSignUp calls context.register() which hits Supabase Auth
+ * 4. If Supabase has email confirmation enabled:
+ *    - register() returns { success: true, needsConfirmation: true }
+ *    - We show the "Check your email" screen (emailSent state)
+ *    - User clicks the link in their email to verify
+ *    - After verifying, they can log in normally
+ * 5. If auto-confirmed (dev mode):
+ *    - register() returns { success: true }
+ *    - User is redirected straight to the home page
+ * 6. If there's an error (duplicate email, etc.):
+ *    - Error message is displayed below the form
+ *
+ * The email confirmation screen is a separate conditional render that
+ * replaces the entire sign-up form with a friendly "check your inbox" message.
+ */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -13,9 +42,16 @@ export const Register = () => {
 
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    // These two states control the email confirmation screen
     const [emailSent, setEmailSent] = useState(false);
     const [registeredEmail, setRegisteredEmail] = useState('');
 
+    /**
+     * handleSignUp - Called when the user submits the registration form.
+     *
+     * Does client-side validation first (password length and match),
+     * then calls context.register() for the actual Supabase signup.
+     */
     const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
@@ -26,6 +62,7 @@ export const Register = () => {
         const password = formData.get('password') as string;
         const confirmPassword = formData.get('confirmPassword') as string;
 
+        // Client-side password validation
         if (password.length < 6) {
             setError(t.passwordTooShort);
             return;
@@ -41,20 +78,28 @@ export const Register = () => {
         setIsLoading(false);
 
         if (result.success && result.needsConfirmation) {
+            // Email confirmation required - show the "check your email" screen
             setRegisteredEmail(email);
             setEmailSent(true);
         } else if (result.success) {
+            // Auto-confirmed (dev mode) - go straight to the app
             navigate('/');
         } else {
+            // Show the error (e.g., "User already registered")
             setError(result.error || t.registerFailed);
         }
     };
 
-    // Email confirmation success screen
+    // =========================================================================
+    // EMAIL CONFIRMATION SCREEN
+    // Shown after successful registration when email confirmation is required.
+    // This replaces the entire sign-up form with a friendly message.
+    // =========================================================================
     if (emailSent) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
                 <div className="max-w-md w-full text-center">
+                    {/* Big mail icon in a green circle */}
                     <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Mail size={36} className="text-emerald-600" />
                     </div>
@@ -62,6 +107,7 @@ export const Register = () => {
                     <p className="text-muted-foreground mb-2">
                         We've sent a confirmation link to
                     </p>
+                    {/* Show the email they registered with so they know where to look */}
                     <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 mb-6">
                         {registeredEmail}
                     </p>
@@ -69,6 +115,7 @@ export const Register = () => {
                         Click the link in the email to verify your account and start your journey with SafarGo.
                     </p>
 
+                    {/* Help tip for users who don't see the email */}
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 mb-6 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-start gap-3 text-left">
                             <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" />
@@ -79,6 +126,7 @@ export const Register = () => {
                         </div>
                     </div>
 
+                    {/* Button to go back to the sign-in page */}
                     <button
                         onClick={() => navigate('/login')}
                         className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
@@ -90,11 +138,19 @@ export const Register = () => {
         );
     }
 
+    // =========================================================================
+    // REGISTRATION FORM
+    // Uses the same SignInPage component as Login, but in "signup" mode which
+    // adds the name and confirm password fields.
+    // =========================================================================
     return (
         <div className="bg-background text-foreground relative overflow-hidden">
+            {/* Animated background - same as Login page */}
             <div className="fixed inset-0 w-full h-full overflow-hidden bg-slate-50 dark:bg-slate-900 z-0">
                 <Boxes />
             </div>
+
+            {/* SignInPage in signup mode - shows name, email, password, confirm password fields */}
             <SignInPage
                 mode="signup"
                 title={

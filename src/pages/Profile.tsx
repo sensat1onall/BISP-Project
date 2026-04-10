@@ -1,3 +1,12 @@
+// =============================================================================
+// Profile.tsx — The user profile and account management page for SafarGo.
+// This is a pretty packed page that handles: user profile display and editing,
+// wallet management (deposit/withdraw via HUMO and UZCARD — Uzbekistan's local
+// payment cards), transaction history, guide application form, role switching
+// between traveler and guide modes, avatar upload, settings modal (theme and
+// language), and logout. The wallet system is in demo mode — no real charges.
+// =============================================================================
+
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
@@ -15,7 +24,9 @@ import { MetalButton } from '../components/ui/liquid-glass-button';
 export const Profile = () => {
     const { user, language, theme, setTheme, setLanguage, switchToTraveler, switchToGuide, guideApplicationStatus, submitGuideApplication, withdrawFunds, logout, updateUser, bookings, trips, refreshProfile } = useApp();
 
-    // Refresh profile from DB on mount to catch admin changes (role, ban, etc.)
+    // Refresh the user profile from the database when this page loads.
+    // This catches any changes made by admins (like role changes, bans, etc.)
+    // that happened while the user was on other pages.
     useEffect(() => {
         refreshProfile();
     }, []);
@@ -23,36 +34,48 @@ export const Profile = () => {
     const commonT = translations[language].common;
     void translations[language].wallet;
 
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editName, setEditName] = useState(user.name);
+    // -- UI state for various modals and editing modes --
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);      // Settings modal (theme + language)
+    const [isEditing, setIsEditing] = useState(false);                // Name editing mode
+    const [editName, setEditName] = useState(user.name);              // Temp name value while editing
+
+    // Guide application form state
     const [showGuideForm, setShowGuideForm] = useState(false);
     const [guideForm, setGuideForm] = useState({ fullName: '', surname: '', age: '', gender: '', experience: '' });
     const [isSubmittingApp, setIsSubmittingApp] = useState(false);
     const [appError, setAppError] = useState('');
+
+    // Hidden file input ref for avatar upload
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
-    // Payment modals
-    const [showDeposit, setShowDeposit] = useState(false);
-    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<'humo' | 'uzcard'>('humo');
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [depositAmount, setDepositAmount] = useState('');
-    const [paymentProcessing, setPaymentProcessing] = useState(false);
-    const [paymentSuccess, setPaymentSuccess] = useState(false);
+    // -- Payment/wallet state --
+    // These control the deposit and withdrawal modals and their forms.
+    // Both HUMO and UZCARD are Uzbekistan's local debit card systems.
+    const [showDeposit, setShowDeposit] = useState(false);            // Deposit modal visibility
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false); // Withdrawal modal visibility
+    const [paymentMethod, setPaymentMethod] = useState<'humo' | 'uzcard'>('humo');  // Selected card type
+    const [cardNumber, setCardNumber] = useState('');                  // Card number input
+    const [cardExpiry, setCardExpiry] = useState('');                  // Expiry date input
+    const [depositAmount, setDepositAmount] = useState('');            // How much to deposit
+    const [paymentProcessing, setPaymentProcessing] = useState(false); // Shows loading spinner during "processing"
+    const [paymentSuccess, setPaymentSuccess] = useState(false);       // Shows success animation after payment
 
+    // Format card number with spaces every 4 digits (e.g., "9860 1234 5678 9012")
+    // and cap at 16 digits total. This is just for display — makes it easier to read.
     const formatCardNumber = (val: string) => {
         const digits = val.replace(/\D/g, '').slice(0, 16);
         return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
     };
 
+    // Format expiry date as MM/YY — auto-inserts the slash after 2 digits
     const formatExpiry = (val: string) => {
         const digits = val.replace(/\D/g, '').slice(0, 4);
         if (digits.length > 2) return digits.slice(0, 2) + '/' + digits.slice(2);
         return digits;
     };
 
+    // Handle deposit — this is DEMO MODE, so we just simulate a 2-second "processing" delay
+    // and then add the amount to the user's wallet balance. No real API calls happen.
     const handleDeposit = async () => {
         if (!cardNumber || !cardExpiry || !depositAmount) return;
         setPaymentProcessing(true);
@@ -64,6 +87,7 @@ export const Profile = () => {
         }
         setPaymentProcessing(false);
         setPaymentSuccess(true);
+        // Auto-close the modal after showing the success animation
         setTimeout(() => {
             setShowDeposit(false);
             setPaymentSuccess(false);
@@ -73,6 +97,8 @@ export const Profile = () => {
         }, 1500);
     };
 
+    // Handle withdrawal — similar demo flow. Withdraws the entire wallet balance
+    // to the specified card. Again, no real money moves in demo mode.
     const handleWithdrawToCard = async () => {
         if (!cardNumber || !cardExpiry || user.walletBalance === 0) return;
         setPaymentProcessing(true);
@@ -88,6 +114,8 @@ export const Profile = () => {
         }, 1500);
     };
 
+    // Avatar upload — reads the selected image file as a base64 data URL
+    // and saves it to the user's profile. The image is stored directly in state.
     const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -101,6 +129,7 @@ export const Profile = () => {
 
 
 
+    // Save the edited profile name — trims whitespace and updates the user object
     const handleSaveProfile = () => {
         if (editName.trim()) {
             updateUser({ name: editName.trim() });
@@ -108,6 +137,7 @@ export const Profile = () => {
         }
     };
 
+    // Simple logout handler
     const handleLogout = () => {
         logout();
     };
@@ -115,10 +145,15 @@ export const Profile = () => {
     return (
         <div className="py-8 px-6">
             <div className="max-w-4xl mx-auto">
+                {/* Two-column layout: profile card on the left, wallet + actions on the right */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left: Profile Card */}
+                    {/* Left Column: Profile Card + Stats */}
                     <div className="space-y-6">
+                        {/* Profile Card — shows avatar, name, role badge, and member-since date.
+                            The header gradient changes color based on role (blue for guides, green for travelers).
+                            Clicking the avatar opens a file picker for uploading a new photo. */}
                         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            {/* Color-coded header banner — blue for guides, green for travelers */}
                             <div className={`h-28 relative ${user.role === 'guide' ? 'bg-gradient-to-r from-blue-600 to-indigo-500' : 'bg-gradient-to-r from-emerald-600 to-teal-500'}`}>
                                 {user.role === 'guide' && (
                                     <div className="absolute top-3 right-3 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-[10px] font-bold text-white">
@@ -127,6 +162,7 @@ export const Profile = () => {
                                 )}
                             </div>
                             <div className="px-6 pb-6 -mt-12">
+                                {/* Avatar with camera overlay on hover — clicking opens file picker */}
                                 <div className="flex items-end justify-between mb-3">
                                     <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
                                         <img
@@ -134,6 +170,7 @@ export const Profile = () => {
                                             alt={user.name}
                                             className="w-20 h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md object-cover"
                                         />
+                                        {/* Camera icon overlay — appears on hover */}
                                         <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <Camera size={20} className="text-white" />
                                         </div>
@@ -145,6 +182,7 @@ export const Profile = () => {
                                             className="hidden"
                                         />
                                     </div>
+                                    {/* Verified badge — shown if the user's account is verified */}
                                     {user.isVerified && (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 mb-1">
                                             <ShieldCheck size={12} className="mr-1" />
@@ -153,6 +191,8 @@ export const Profile = () => {
                                     )}
                                 </div>
 
+                                {/* Name display — toggles between view mode and edit mode.
+                                    In edit mode, shows an input field with Save/Cancel buttons. */}
                                 {isEditing ? (
                                     <div className="space-y-3">
                                         <input
@@ -184,7 +224,7 @@ export const Profile = () => {
                             </div>
                         </div>
 
-                        {/* Stats */}
+                        {/* Stats Cards — completed trips count and average rating */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                                 <div className="flex items-center gap-2 mb-2 text-slate-500 dark:text-slate-400">
@@ -206,9 +246,11 @@ export const Profile = () => {
                         </div>
                     </div>
 
-                    {/* Right: Wallet + Actions */}
+                    {/* Right Column: Wallet, Transactions, Menu — takes up 2/3 on large screens */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Wallet */}
+                        {/* Wallet Card — dark background with a big balance display.
+                            Has Deposit and Withdraw buttons that open their respective modals.
+                            The decorative blurred green circle in the background is purely aesthetic. */}
                         <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-16 translate-x-16" />
                             <div className="relative z-10 flex justify-between items-start mb-6">
@@ -229,7 +271,8 @@ export const Profile = () => {
                             <p className="text-[10px] text-slate-500 mt-2 text-center">Demo mode — HUMO & UZCARD payments simulated</p>
                         </div>
 
-                        {/* Transaction History */}
+                        {/* Transaction History — shows the last 10 bookings as transaction records.
+                            Each entry shows the trip name, date, and amount deducted. */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
                             <h3 className="font-semibold dark:text-white text-sm mb-3">Recent Transactions</h3>
                             {bookings.length > 0 ? (
@@ -257,10 +300,17 @@ export const Profile = () => {
                             )}
                         </div>
 
-                        {/* Menu */}
+                        {/* Action Menu — role switching, settings, and logout.
+                            The role section changes based on the current guide application status:
+                            - Guide users: can switch back to traveler mode
+                            - Approved applicants: can switch to guide mode
+                            - Pending: shows "waiting for review" status
+                            - Rejected: can re-apply
+                            - No application: shows "Apply to Become a Guide" button */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                            {/* Guide Role Section */}
+                            {/* Guide Role Section — different UI for each application status */}
                             {user.role === 'guide' ? (
+                                // Already a guide — show option to switch back to traveler mode
                                 <button
                                     onClick={switchToTraveler}
                                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
@@ -274,6 +324,7 @@ export const Profile = () => {
                                     <ChevronRight size={18} className="text-slate-400" />
                                 </button>
                             ) : guideApplicationStatus === 'approved' ? (
+                                // Application approved — they can now switch to guide mode
                                 <button
                                     onClick={switchToGuide}
                                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
@@ -287,6 +338,7 @@ export const Profile = () => {
                                     <ChevronRight size={18} className="text-slate-400" />
                                 </button>
                             ) : guideApplicationStatus === 'pending' ? (
+                                // Application pending — just a status indicator, no action available
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg">
@@ -299,6 +351,7 @@ export const Profile = () => {
                                     </div>
                                 </div>
                             ) : guideApplicationStatus === 'rejected' ? (
+                                // Application rejected — they can try again
                                 <button
                                     onClick={() => setShowGuideForm(true)}
                                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
@@ -315,6 +368,7 @@ export const Profile = () => {
                                     <ChevronRight size={18} className="text-slate-400" />
                                 </button>
                             ) : (
+                                // No application yet — show the "Apply to Become a Guide" button
                                 <button
                                     onClick={() => setShowGuideForm(true)}
                                     className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
@@ -329,6 +383,7 @@ export const Profile = () => {
                                 </button>
                             )}
 
+                            {/* Settings button — opens the theme/language modal */}
                             <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
@@ -339,6 +394,7 @@ export const Profile = () => {
                                 <ChevronRight size={18} className="text-slate-400" />
                             </button>
 
+                            {/* Logout button — styled in red to indicate it's a destructive action */}
                             <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg">
@@ -353,7 +409,7 @@ export const Profile = () => {
                 </div>
             </div>
 
-            {/* Settings Modal */}
+            {/* Settings Modal — allows changing the app theme (light/dark/system) and language (EN/RU/UZ) */}
             {isSettingsOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl p-6 relative">
@@ -363,6 +419,7 @@ export const Profile = () => {
                         </button>
 
                         <div className="space-y-6">
+                            {/* Theme selector — three options with icons */}
                             <div>
                                 <label className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 block">{t.theme}</label>
                                 <div className="grid grid-cols-3 gap-2">
@@ -386,6 +443,7 @@ export const Profile = () => {
                                 </div>
                             </div>
 
+                            {/* Language selector — supports English, Russian, and Uzbek */}
                             <div>
                                 <label className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 block">{t.language}</label>
                                 <div className="space-y-2">
@@ -425,7 +483,9 @@ export const Profile = () => {
             )}
 
             {/* Guide Application Modal */}
-            {/* Deposit Modal */}
+            {/* Deposit Modal — lets users add funds to their wallet via HUMO or UZCARD.
+                In demo mode, this just simulates a 2-second processing delay and adds the amount.
+                Shows a success animation with checkmark after "payment" completes. */}
             {showDeposit && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
@@ -433,6 +493,7 @@ export const Profile = () => {
                             <X size={20} />
                         </button>
 
+                        {/* Payment success state — shown after processing completes */}
                         {paymentSuccess ? (
                             <div className="text-center py-8">
                                 <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -446,7 +507,8 @@ export const Profile = () => {
                                 <h2 className="text-xl font-bold dark:text-white mb-1">Deposit Funds</h2>
                                 <p className="text-xs text-slate-400 mb-5">Demo mode — no real charges will be made</p>
 
-                                {/* Payment Method Selector */}
+                                {/* Payment Method Selector — toggle between HUMO and UZCARD.
+                                    HUMO cards start with 9860, UZCARD starts with 8600. */}
                                 <div className="flex gap-2 mb-5">
                                     <button
                                         onClick={() => setPaymentMethod('humo')}
@@ -464,6 +526,7 @@ export const Profile = () => {
                                     </button>
                                 </div>
 
+                                {/* Card details form — card number, expiry, and amount */}
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Card Number</label>
@@ -512,7 +575,8 @@ export const Profile = () => {
                 </div>
             )}
 
-            {/* Withdraw Modal */}
+            {/* Withdraw Modal — lets users withdraw their entire wallet balance to a card.
+                Same demo flow as deposit — simulated processing with a success animation. */}
             {showWithdrawModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
@@ -534,7 +598,7 @@ export const Profile = () => {
                                 <p className="text-xs text-slate-400 mb-2">Demo mode — no real transfer will be made</p>
                                 <p className="text-sm font-semibold text-emerald-600 mb-5">Available: {formatCurrency(user.walletBalance)}</p>
 
-                                {/* Payment Method Selector */}
+                                {/* Payment Method Selector — same HUMO/UZCARD toggle as deposit */}
                                 <div className="flex gap-2 mb-5">
                                     <button
                                         onClick={() => setPaymentMethod('humo')}
@@ -550,6 +614,7 @@ export const Profile = () => {
                                     </button>
                                 </div>
 
+                                {/* Card details for withdrawal */}
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Card Number</label>
@@ -585,6 +650,9 @@ export const Profile = () => {
                 </div>
             )}
 
+            {/* Guide Application Form Modal — collects personal info (name, surname, age, gender)
+                and a description of their guiding experience. Submitted to the admin for review.
+                The admin can approve or reject from the admin panel. */}
             {showGuideForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
@@ -594,12 +662,14 @@ export const Profile = () => {
                         <h2 className="text-xl font-bold dark:text-white mb-1">Apply to Become a Guide</h2>
                         <p className="text-xs text-slate-400 mb-5">Fill in your details. An admin will review your application.</p>
 
+                        {/* Error message if submission fails */}
                         {appError && (
                             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 text-sm text-red-600 dark:text-red-300 mb-4">
                                 {appError}
                             </div>
                         )}
 
+                        {/* Application form — submits to the backend via submitGuideApplication */}
                         <form onSubmit={async (e) => {
                             e.preventDefault();
                             setAppError('');
@@ -618,6 +688,7 @@ export const Profile = () => {
                                 setAppError('Failed to submit application. Please try again.');
                             }
                         }} className="space-y-4">
+                            {/* First name and surname — as shown on official ID */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">First Name (as in ID)</label>
@@ -641,6 +712,7 @@ export const Profile = () => {
                                 </div>
                             </div>
 
+                            {/* Age and gender — age must be 18-70 */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Age</label>
@@ -670,6 +742,7 @@ export const Profile = () => {
                                 </div>
                             </div>
 
+                            {/* Experience textarea — the most important field for the admin to review */}
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Guiding Experience</label>
                                 <textarea

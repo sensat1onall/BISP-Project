@@ -16,7 +16,13 @@
       "Bash(curl -s \"https://safargo-production-84bb.up.railway.app/assets/index-s1j8hwcc.js\")",
       "Bash(grep -oP 'supabase[^\"]{0,50}')",
       "mcp__Claude_Preview__preview_start",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npm ci:*)",
+      "Read(//c/Users/ryanm/Downloads/Telegram Desktop/BISP 2025 Best projects \\(1\\)/**)",
+      "Bash(pandoc \"BISP_FinalReport_FarangisToirjonova_00014055.docx\" -o /tmp/farangis.md)",
+      "Read(//tmp/**)",
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)"
     ]
   }
 }

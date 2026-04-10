@@ -1,3 +1,13 @@
+// =============================================================================
+// Chat.tsx — Real-time group chat system for SafarGo.
+// When a user books a trip, they get added to that trip's chat group.
+// This page uses Supabase Realtime (PostgreSQL LISTEN/NOTIFY under the hood)
+// to push new messages to all connected clients instantly. The layout is a
+// two-panel design: chat list on the left, messages on the right — similar to
+// WhatsApp Web. On mobile, it switches between the two panels since there's
+// not enough room for both. Also supports AI messages from the SafarGo bot.
+// =============================================================================
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
@@ -6,6 +16,7 @@ import { ChatMessage } from '../types';
 import { Send, ArrowLeft, Users, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/cn';
 
+// TypeScript types for the raw Supabase rows — these match the database schema
 interface ChatGroupRow {
     id: string;
     trip_id: string;
@@ -14,6 +25,7 @@ interface ChatGroupRow {
     created_at: string;
 }
 
+// Preview data we build for the chat list sidebar — includes last message and member count
 interface ChatPreviewData {
     id: string;
     name: string;
@@ -27,26 +39,32 @@ export const Chat = () => {
     const { user, language } = useApp();
     const t = translations[language].nav;
 
-    const [chatGroups, setChatGroups] = useState<ChatPreviewData[]>([]);
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [sending, setSending] = useState(false);
+    // -- Core state --
+    const [chatGroups, setChatGroups] = useState<ChatPreviewData[]>([]);  // All chat groups the user belongs to
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);  // Currently open chat
+    const [messages, setMessages] = useState<ChatMessage[]>([]);  // Messages for the selected chat
+    const [newMessage, setNewMessage] = useState('');  // Text in the message input
+    const [loading, setLoading] = useState(true);  // Initial loading state
+    const [error, setError] = useState<string | null>(null);  // Error state for failed loads
+    const [sending, setSending] = useState(false);  // Prevents double-sending while a message is in flight
+
+    // Refs for auto-scrolling to the latest message and focusing the input
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Smooth-scroll to the bottom of the messages list whenever new messages come in
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    // Load user's chat groups
+    // Load all chat groups the user is a member of.
+    // The flow is: get memberships -> get group details -> for each group, fetch last message + member count.
+    // This builds the preview data shown in the left sidebar.
     const loadChatGroups = useCallback(async () => {
         if (!user.id) return;
 
         try {
-        // Get all chat_ids the user is a member of
+        // Step 1: Find all chat_ids this user is a member of
         const { data: memberships, error: memberErr } = await supabase
             .from('chat_members')
             .select('chat_id')
@@ -59,6 +77,7 @@ export const Chat = () => {
             return;
         }
 
+        // If the user hasn't booked any trips yet, they won't have any chat groups
         if (!memberships || memberships.length === 0) {
             setChatGroups([]);
             setLoading(false);
@@ -67,7 +86,7 @@ export const Chat = () => {
 
         const chatIds = memberships.map(m => m.chat_id);
 
-        // Get chat group details
+        // Step 2: Get the actual chat group details (name, image, etc.)
         const { data: groups } = await supabase
             .from('chat_groups')
             .select('*')
@@ -79,9 +98,11 @@ export const Chat = () => {
             return;
         }
 
-        // For each group, get last message and member count
+        // Step 3: For each group, fetch the last message and member count in parallel.
+        // This gives us the preview text and member badge for the sidebar list.
         const previews: ChatPreviewData[] = await Promise.all(
             groups.map(async (group: ChatGroupRow) => {
+                // Get the most recent message for the preview text
                 const { data: lastMsg } = await supabase
                     .from('chat_messages')
                     .select('content, created_at')
@@ -90,6 +111,7 @@ export const Chat = () => {
                     .limit(1)
                     .single();
 
+                // Get the member count using Supabase's count feature (no data transfer, just the count)
                 const { count } = await supabase
                     .from('chat_members')
                     .select('*', { count: 'exact', head: true })
@@ -115,7 +137,8 @@ export const Chat = () => {
         }
     }, [user.id]);
 
-    // Load messages for selected chat
+    // Load all messages for a specific chat, ordered chronologically.
+    // Maps the snake_case database columns to our camelCase ChatMessage type.
     const loadMessages = useCallback(async (chatId: string) => {
         const { data, error: msgErr } = await supabase
             .from('chat_messages')
@@ -142,12 +165,12 @@ export const Chat = () => {
         }
     }, []);
 
-    // Initial load
+    // Initial load — fetch chat groups when the component mounts
     useEffect(() => {
         loadChatGroups();
     }, [loadChatGroups]);
 
-    // Load messages when selecting a chat
+    // When the user selects a different chat, load its messages and focus the input
     useEffect(() => {
         if (selectedChatId) {
             loadMessages(selectedChatId);
@@ -155,12 +178,16 @@ export const Chat = () => {
         }
     }, [selectedChatId, loadMessages]);
 
-    // Scroll to bottom when messages change
+    // Auto-scroll to the bottom whenever the messages array changes (new message received/sent)
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
-    // Realtime subscription for new messages
+    // Supabase Realtime subscription — this is the magic that makes chat feel instant.
+    // We subscribe to INSERT events on the chat_messages table, filtered to our selected chat.
+    // When another user sends a message, Supabase pushes it to us via WebSocket and we add
+    // it to the local state. We also check for duplicates because our optimistic updates
+    // might have already added the message before the server confirms it.
     useEffect(() => {
         if (!selectedChatId) return;
 
@@ -172,6 +199,7 @@ export const Chat = () => {
                 table: 'chat_messages',
                 filter: `chat_id=eq.${selectedChatId}`,
             }, (payload) => {
+                // Map the incoming row to our ChatMessage type
                 const m = payload.new as Record<string, unknown>;
                 const newMsg: ChatMessage = {
                     id: m.id as string,
@@ -184,28 +212,33 @@ export const Chat = () => {
                     isAi: m.is_ai as boolean,
                 };
                 setMessages(prev => {
-                    // Avoid duplicates
+                    // Dedup check — if we already have this message (from optimistic update), skip it
                     if (prev.some(msg => msg.id === newMsg.id)) return prev;
                     return [...prev, newMsg];
                 });
             })
             .subscribe();
 
+        // Cleanup: unsubscribe when we leave the chat or select a different one
         return () => {
             supabase.removeChannel(channel);
         };
     }, [selectedChatId]);
 
-    // Send message with optimistic update
+    // Send a message with optimistic update.
+    // The idea: we immediately add the message to local state so it appears instantly,
+    // then insert it into the database in the background. This makes the chat feel snappy
+    // even on slow connections. The dedup check in the realtime subscription above prevents
+    // the message from showing up twice when the server confirms it.
     const handleSend = async () => {
         if (!newMessage.trim() || !selectedChatId || sending) return;
 
         setSending(true);
         const content = newMessage.trim();
         const tempId = crypto.randomUUID();
-        setNewMessage('');
+        setNewMessage('');  // Clear the input right away for a snappy feel
 
-        // Optimistically add to local state immediately
+        // Optimistically add the message to local state so it shows up immediately
         const optimisticMsg: ChatMessage = {
             id: tempId,
             chatId: selectedChatId,
@@ -218,7 +251,7 @@ export const Chat = () => {
         };
         setMessages(prev => [...prev, optimisticMsg]);
 
-        // Insert to database in background
+        // Actually persist the message to Supabase in the background
         await supabase.from('chat_messages').insert({
             id: tempId,
             chat_id: selectedChatId,
@@ -233,6 +266,7 @@ export const Chat = () => {
         inputRef.current?.focus();
     };
 
+    // Send on Enter key (but not Shift+Enter, which should create a new line in multi-line inputs)
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -240,6 +274,8 @@ export const Chat = () => {
         }
     };
 
+    // Smart time formatting — shows "HH:MM" for today, "Yesterday" for yesterday,
+    // and "Mon DD" for older messages. Keeps the UI clean without showing full timestamps.
     const formatTime = (dateStr: string) => {
         const d = new Date(dateStr);
         const now = new Date();
@@ -250,10 +286,12 @@ export const Chat = () => {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
+    // Find the currently selected group's details for the chat header
     const selectedGroup = chatGroups.find(g => g.id === selectedChatId);
 
     // ---- RENDER ----
 
+    // Loading spinner while fetching chat groups from Supabase
     if (loading) {
         return (
             <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
@@ -265,6 +303,7 @@ export const Chat = () => {
         );
     }
 
+    // Error state with a retry button — shown when Supabase queries fail
     if (error) {
         return (
             <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
@@ -284,18 +323,20 @@ export const Chat = () => {
 
     return (
         <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 mx-4 my-4">
-            {/* Left Panel: Chat List */}
+            {/* Left Panel: Chat List — shows all groups the user belongs to.
+                On mobile, this panel is hidden when a chat is selected (we show messages instead).
+                On desktop (md+), both panels are always visible side by side. */}
             <div className={cn(
                 "w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-700 flex flex-col",
                 selectedChatId ? "hidden md:flex" : "flex"
             )}>
-                {/* Header */}
+                {/* Chat list header with count */}
                 <div className="p-4 border-b border-slate-100 dark:border-slate-800">
                     <h1 className="text-xl font-bold dark:text-white">{t.chat}</h1>
                     <p className="text-xs text-slate-400 mt-1">{chatGroups.length} trip group{chatGroups.length !== 1 ? 's' : ''}</p>
                 </div>
 
-                {/* Chat List */}
+                {/* Chat group list — or an empty state if the user hasn't joined any chats yet */}
                 {chatGroups.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center p-8">
                         <div className="text-center">
@@ -318,6 +359,7 @@ export const Chat = () => {
                                         : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                 )}
                             >
+                                {/* Group avatar image */}
                                 <img
                                     src={group.image || 'https://images.unsplash.com/photo-1682687982501-1e58ab814717?w=100&h=100&fit=crop'}
                                     alt={group.name}
@@ -328,6 +370,7 @@ export const Chat = () => {
                                         <h3 className="font-semibold text-sm dark:text-white truncate">{group.name}</h3>
                                         <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">{formatTime(group.lastMessageTime)}</span>
                                     </div>
+                                    {/* Last message preview — truncated with CSS ellipsis */}
                                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{group.lastMessage}</p>
                                     <div className="flex items-center gap-1 mt-1">
                                         <Users size={10} className="text-slate-400" />
@@ -340,11 +383,14 @@ export const Chat = () => {
                 )}
             </div>
 
-            {/* Right Panel: Messages */}
+            {/* Right Panel: Messages — shows the conversation for the selected chat.
+                On mobile, this takes over the full width when a chat is selected.
+                On desktop, it's always visible (shows a placeholder if no chat is selected). */}
             <div className={cn(
                 "flex-1 flex flex-col",
                 !selectedChatId ? "hidden md:flex" : "flex"
             )}>
+                {/* Placeholder when no chat is selected (desktop only) */}
                 {!selectedChatId ? (
                     <div className="flex-1 flex items-center justify-center">
                         <div className="text-center">
@@ -354,8 +400,10 @@ export const Chat = () => {
                     </div>
                 ) : (
                     <>
-                        {/* Chat Header */}
+                        {/* Chat Header — shows group name, image, member count.
+                            On mobile, there's a back arrow to return to the chat list. */}
                         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                            {/* Back button — only visible on mobile to go back to chat list */}
                             <button
                                 onClick={() => setSelectedChatId(null)}
                                 aria-label="Back to chat list"
@@ -374,14 +422,18 @@ export const Chat = () => {
                             </div>
                         </div>
 
-                        {/* Messages */}
+                        {/* Messages Area — scrollable container for all messages.
+                            Messages are aligned differently based on who sent them:
+                            - Your messages: right-aligned with green bubble
+                            - Other users: left-aligned with white bubble + avatar
+                            - AI messages: centered with a gradient border and sparkle icon */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900">
                             {messages.map(msg => (
                                 <div key={msg.id} className={cn(
                                     "flex gap-2 max-w-[85%]",
                                     msg.isAi ? "mx-auto max-w-[90%]" : msg.senderId === user.id ? "ml-auto flex-row-reverse" : ""
                                 )}>
-                                    {/* AI message */}
+                                    {/* AI message — special styling with gradient background and sparkle icon */}
                                     {msg.isAi ? (
                                         <div className="w-full bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4">
                                             <div className="flex items-center gap-2 mb-2">
@@ -392,7 +444,7 @@ export const Chat = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Avatar (other users only) */}
+                                            {/* Avatar — only shown for messages from other users, not your own */}
                                             {msg.senderId !== user.id && (
                                                 <img
                                                     src={msg.senderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.senderName)}&background=10b981&color=fff&size=32`}
@@ -401,10 +453,12 @@ export const Chat = () => {
                                                 />
                                             )}
                                             <div>
-                                                {/* Sender name (other users only) */}
+                                                {/* Sender name label — only for other users' messages */}
                                                 {msg.senderId !== user.id && (
                                                     <p className="text-[11px] text-slate-400 mb-1 ml-1">{msg.senderName}</p>
                                                 )}
+                                                {/* Message bubble — green for your messages, white for others.
+                                                    The rounded corners are slightly different on the "tail" side. */}
                                                 <div className={cn(
                                                     "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
                                                     msg.senderId === user.id
@@ -413,6 +467,7 @@ export const Chat = () => {
                                                 )}>
                                                     {msg.content}
                                                 </div>
+                                                {/* Timestamp below each message */}
                                                 <p className={cn(
                                                     "text-[10px] text-slate-400 mt-1",
                                                     msg.senderId === user.id ? "text-right mr-1" : "ml-1"
@@ -424,10 +479,11 @@ export const Chat = () => {
                                     )}
                                 </div>
                             ))}
+                            {/* Invisible anchor element for auto-scrolling to the bottom */}
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Message Input */}
+                        {/* Message Input Bar — fixed at the bottom of the chat panel */}
                         <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                             <div className="flex items-center gap-2">
                                 <input
@@ -440,6 +496,7 @@ export const Chat = () => {
                                     aria-label="Type a message"
                                     className="flex-1 bg-slate-100 dark:bg-slate-700 text-sm text-slate-900 dark:text-white px-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                                 />
+                                {/* Send button — disabled when input is empty or a message is being sent */}
                                 <button
                                     onClick={handleSend}
                                     disabled={!newMessage.trim() || sending}

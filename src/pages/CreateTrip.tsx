@@ -1,3 +1,14 @@
+// =============================================================================
+// CreateTrip.tsx — The trip creation form for guides in SafarGo.
+// This is a pretty feature-rich page that lets guides create new trips with
+// AI assistance. It includes: AI auto-fill (generates description, difficulty,
+// category from just a title + location), AI-powered weather forecasting for
+// the trip dates, AI-generated itinerary with day-by-day activities, multi-image
+// upload, and all the standard form fields like price, seats, dates, etc.
+// Only users with the "guide" role can access this page — everyone else gets
+// redirected to apply on their profile.
+// =============================================================================
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { translations } from '../i18n/translations';
@@ -17,7 +28,9 @@ export const CreateTrip = () => {
     const t = translations[language].create;
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Guard: only guides can create trips
+    // Guard: only guides can create trips.
+    // If a regular traveler somehow navigates here (e.g., typing the URL directly),
+    // we show a friendly message and link them to the profile page where they can apply.
     if (user.role !== 'guide') {
         return (
             <div className="py-20 text-center">
@@ -30,15 +43,24 @@ export const CreateTrip = () => {
         );
     }
 
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isLoadingWeather, setIsLoadingWeather] = useState(false);
-    const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false);
+    // -- Loading states for the various AI features --
+    // Each AI feature has its own loading flag so we can show spinners independently
+    const [isGenerating, setIsGenerating] = useState(false);           // AI auto-fill for description
+    const [isLoadingWeather, setIsLoadingWeather] = useState(false);   // Weather forecast fetch
+    const [isGeneratingItinerary, setIsGeneratingItinerary] = useState(false); // AI itinerary generation
+
+    // Weather data returned from the Gemini API — includes temp, forecast, and packing recommendations
     const [weatherData, setWeatherData] = useState<WeatherWithRecommendations | null>(null);
+
+    // AI-generated itinerary with day-by-day activities, packing list, and safety tips
     const [itinerary, setItinerary] = useState<{
         days: Array<{ day: number; title: string; activities: Array<{ time: string; activity: string; description: string }> }>;
         packingList: string[];
         safetyTips: string;
     } | null>(null);
+
+    // -- Main form state --
+    // All the trip details live here. Some fields get auto-filled by AI, others are manual.
     const [formData, setFormData] = useState({
         title: '',
         location: '',
@@ -54,17 +76,24 @@ export const CreateTrip = () => {
         images: [] as string[]
     });
 
+    // Helper to handle integer inputs — strips leading zeros so "007" becomes "7".
+    // Without this, number inputs can behave weirdly with leading zeros.
     const handleNumberInput = (field: keyof typeof formData, value: string) => {
         const cleanValue = value.replace(/^0+/, '');
         const numValue = parseInt(cleanValue || '0', 10);
         setFormData(prev => ({ ...prev, [field]: numValue }));
     };
 
+    // Similar helper for float inputs (like distance in km which can be 12.5)
     const handleFloatInput = (field: keyof typeof formData, value: string) => {
         const numValue = parseFloat(value || '0');
         setFormData(prev => ({ ...prev, [field]: isNaN(numValue) ? 0 : numValue }));
     };
 
+    // AI Auto-Fill — the main "Smart Assist" feature.
+    // Given just a title and location, this calls the Gemini API to generate a full description,
+    // suggest difficulty level, category, distance, altitude gain, and even a suggested price.
+    // The guide can then tweak these values manually if the AI got something wrong.
     const handleAutoFill = async () => {
         if (!formData.title || !formData.location) return;
 
@@ -89,6 +118,9 @@ export const CreateTrip = () => {
         }
     };
 
+    // Weather Fetch — calls Gemini with the location and date range to get a forecast.
+    // The recommendations from this (like "bring rain gear") get saved into the trip
+    // and shown on the TripDetails page as packing tips.
     const handleGetWeather = async () => {
         if (!formData.location || !formData.startDate || !formData.endDate) return;
 
@@ -107,6 +139,9 @@ export const CreateTrip = () => {
         }
     };
 
+    // AI Itinerary Generation — creates a detailed day-by-day schedule with activities,
+    // time slots, a packing list, and safety tips. Uses the backend AI API endpoint.
+    // The duration is calculated from the start/end dates so the AI knows how many days to plan for.
     const handleGenerateItinerary = async () => {
         if (!formData.title || !formData.location) return;
         setIsGeneratingItinerary(true);
@@ -128,11 +163,14 @@ export const CreateTrip = () => {
         }
     };
 
-    // Image handling
+    // Image Upload Handler — reads selected files as base64 data URLs and adds them to form state.
+    // We cap at 9 images total. If the user selects more files than remaining slots, we just
+    // take the first N that fit. The hidden file input is triggered by clicking the "Add" button.
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
 
+        // Figure out how many more images we can accept (max 9 total)
         const remainingSlots = 9 - formData.images.length;
         const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
@@ -148,12 +186,13 @@ export const CreateTrip = () => {
             reader.readAsDataURL(file);
         });
 
-        // Reset input
+        // Reset the file input so the same file can be selected again if needed
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
     };
 
+    // Remove a specific image from the upload list by its index
     const removeImage = (index: number) => {
         setFormData(prev => ({
             ...prev,
@@ -161,6 +200,8 @@ export const CreateTrip = () => {
         }));
     };
 
+    // Calculate trip duration in days from the start and end dates.
+    // Returns at least 1 day even if start and end are the same date.
     const calculateDuration = () => {
         if (formData.startDate && formData.endDate) {
             const start = new Date(formData.startDate);
@@ -172,6 +213,9 @@ export const CreateTrip = () => {
         return 1;
     };
 
+    // Form submission — builds the Trip object and adds it to the global state.
+    // If no images were uploaded, we use a fallback Unsplash placeholder.
+    // The weather recommendations (if fetched) get attached to the trip for display on the details page.
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -204,12 +248,12 @@ export const CreateTrip = () => {
         navigate('/');
     };
 
-    // Get today's date for min attribute
+    // Get today's date string for the date inputs' min attribute so guides can't create trips in the past
     const today = new Date().toISOString().split('T')[0];
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-24">
-            {/* Header */}
+            {/* Header — sticky at the top with a back button */}
             <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 p-4 sticky top-0 z-10 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-white">
                     <ArrowLeft size={24} />
@@ -218,7 +262,9 @@ export const CreateTrip = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-4 space-y-6 max-w-lg mx-auto">
-                {/* AI Section with nice gradient border */}
+                {/* AI Smart Assist Section — wrapped in a gradient border to make it stand out.
+                    This is where the guide enters the trip title and location, and can click
+                    "Auto-Fill" to have AI generate the description and other details. */}
                 <div className="p-0.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500">
                     <div className="bg-white dark:bg-slate-900 rounded-[14px] p-4">
                         <div className="flex items-center justify-between mb-4">
@@ -226,6 +272,7 @@ export const CreateTrip = () => {
                                 <Sparkles className="text-emerald-500" size={18} />
                                 Smart Assist
                             </h2>
+                            {/* Auto-Fill button — disabled until both title and location are entered */}
                             <button
                                 type="button"
                                 onClick={handleAutoFill}
@@ -238,6 +285,7 @@ export const CreateTrip = () => {
                         </div>
 
                         <div className="space-y-4">
+                            {/* Trip title input */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{t.tripTitle}</label>
                                 <input
@@ -249,6 +297,7 @@ export const CreateTrip = () => {
                                     required
                                 />
                             </div>
+                            {/* Location input with a map pin icon */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{t.location}</label>
                                 <div className="relative">
@@ -267,7 +316,8 @@ export const CreateTrip = () => {
                     </div>
                 </div>
 
-                {/* Date Selection Section */}
+                {/* Date Selection Section — start and end date pickers with auto-calculated duration.
+                    Once dates and location are set, a "Get Weather" button appears to fetch forecasts. */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 space-y-4">
                     <h3 className="font-semibold dark:text-white flex items-center gap-2">
                         <Calendar className="text-blue-500" size={18} />
@@ -297,13 +347,15 @@ export const CreateTrip = () => {
                             />
                         </div>
                     </div>
+                    {/* Auto-calculated duration display — shows up once both dates are set */}
                     {formData.startDate && formData.endDate && (
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             Duration: <span className="font-semibold text-emerald-600">{calculateDuration()} day(s)</span>
                         </p>
                     )}
 
-                    {/* Weather Forecast Button */}
+                    {/* Weather Forecast Button — only appears when location + both dates are filled.
+                        Fetches AI weather predictions and packing recommendations from Gemini. */}
                     {formData.location && formData.startDate && formData.endDate && (
                         <button
                             type="button"
@@ -316,7 +368,8 @@ export const CreateTrip = () => {
                         </button>
                     )}
 
-                    {/* Weather Display */}
+                    {/* Weather Display — shows after the forecast is fetched.
+                        Includes current temp, multi-day forecast cards, and packing recommendations. */}
                     {weatherData && (
                         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-4 space-y-3">
                             <div className="flex items-center justify-between">
@@ -333,6 +386,7 @@ export const CreateTrip = () => {
                                     ))}
                                 </div>
                             )}
+                            {/* AI-generated packing recommendations based on weather conditions */}
                             {weatherData.recommendations && (
                                 <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                                     <div className="flex items-start gap-2">
@@ -345,7 +399,9 @@ export const CreateTrip = () => {
                     )}
                 </div>
 
-                {/* AI Itinerary Section */}
+                {/* AI Itinerary Section — generates a full day-by-day schedule using AI.
+                    Includes time-slotted activities, a packing checklist, and safety tips.
+                    The guide needs to have entered a title and location before this can be generated. */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="font-semibold dark:text-white flex items-center gap-2">
@@ -364,10 +420,12 @@ export const CreateTrip = () => {
                         </button>
                     </div>
 
+                    {/* Placeholder text shown before any itinerary is generated */}
                     {!itinerary && !isGeneratingItinerary && (
                         <p className="text-xs text-slate-400">Enter a trip title and location, then generate a detailed hour-by-hour schedule with AI.</p>
                     )}
 
+                    {/* Generated itinerary display — each day has a card with time-slotted activities */}
                     {itinerary && (
                         <div className="space-y-4">
                             {itinerary.days.map((day) => (
@@ -393,6 +451,7 @@ export const CreateTrip = () => {
                                 </div>
                             ))}
 
+                            {/* Packing list — displayed as pill-shaped tags */}
                             {itinerary.packingList.length > 0 && (
                                 <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
                                     <h4 className="font-semibold text-sm text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
@@ -408,6 +467,7 @@ export const CreateTrip = () => {
                                 </div>
                             )}
 
+                            {/* Safety tips from the AI */}
                             {itinerary.safetyTips && (
                                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4">
                                     <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-2">
@@ -420,18 +480,21 @@ export const CreateTrip = () => {
                     )}
                 </div>
 
-                {/* Trip Images Section */}
+                {/* Trip Photos Section — allows uploading up to 9 images.
+                    Images are stored as base64 data URLs in the form state.
+                    Each uploaded image shows a hover-to-delete button. */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 space-y-4">
                     <h3 className="font-semibold dark:text-white flex items-center gap-2">
                         <ImagePlus className="text-purple-500" size={18} />
                         Trip Photos ({formData.images.length}/9)
                     </h3>
 
-                    {/* Image Grid */}
+                    {/* Image Grid — shows uploaded images + an "Add" button if under the limit */}
                     <div className="grid grid-cols-3 gap-2">
                         {formData.images.map((img, idx) => (
                             <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
                                 <img src={img} alt={`Trip ${idx + 1}`} className="w-full h-full object-cover" />
+                                {/* Delete button appears on hover */}
                                 <button
                                     type="button"
                                     onClick={() => removeImage(idx)}
@@ -442,7 +505,7 @@ export const CreateTrip = () => {
                             </div>
                         ))}
 
-                        {/* Add Image Button */}
+                        {/* Add Image Button — triggers the hidden file input */}
                         {formData.images.length < 9 && (
                             <button
                                 type="button"
@@ -455,6 +518,7 @@ export const CreateTrip = () => {
                         )}
                     </div>
 
+                    {/* Hidden file input — we click it programmatically from the Add button above */}
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -466,8 +530,10 @@ export const CreateTrip = () => {
                     <p className="text-xs text-slate-400">Select images from your device. Maximum 9 photos.</p>
                 </div>
 
-                {/* Details Section */}
+                {/* Trip Details Section — price, seats, distance, altitude, difficulty, category, description.
+                    Some of these may have been auto-filled by the AI Smart Assist feature. */}
                 <div className="space-y-4">
+                    {/* Price and max seats — side by side */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{t.price}</label>
@@ -497,7 +563,7 @@ export const CreateTrip = () => {
                         </div>
                     </div>
 
-                    {/* Distance and Altitude - Now Visible */}
+                    {/* Distance and altitude gain — these can be auto-filled by AI */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Distance (km)</label>
@@ -530,6 +596,7 @@ export const CreateTrip = () => {
                         </div>
                     </div>
 
+                    {/* Difficulty and category dropdowns — can also be set by AI auto-fill */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Difficulty</label>
@@ -557,6 +624,7 @@ export const CreateTrip = () => {
                         </div>
                     </div>
 
+                    {/* Description textarea — often auto-filled by AI but fully editable */}
                     <div>
                         <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Description</label>
                         <textarea
@@ -568,6 +636,7 @@ export const CreateTrip = () => {
                     </div>
                 </div>
 
+                {/* Submit Button — publishes the trip and navigates back to the home page */}
                 <div className="pt-4 flex justify-center">
                     <MetalButton
                         variant="success"
@@ -577,6 +646,7 @@ export const CreateTrip = () => {
                         <Check size={20} className="mr-2" />
                         {t.publish}
                     </MetalButton>
+                    {/* Friendly warning if the price is set to 0 — maybe the guide forgot to set it */}
                     {formData.price === 0 && (
                         <p className="text-center text-xs text-amber-500 mt-2">Warning: Price is set to 0 (Free)</p>
                     )}

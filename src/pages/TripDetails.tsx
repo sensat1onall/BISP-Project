@@ -1,3 +1,12 @@
+// =============================================================================
+// TripDetails.tsx — The detailed view for a single trip in SafarGo.
+// When a user clicks on a trip card from the Home page, they land here.
+// This page handles a LOT: image gallery, trip stats, weather forecast via
+// Gemini AI, booking flow with a confirmation modal, rating/review system
+// for completed trips, and different views depending on whether you're the
+// guide who created the trip or a traveler looking to book it.
+// =============================================================================
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -9,25 +18,41 @@ import { cn } from '../lib/cn';
 import { MetalButton } from '../components/ui/liquid-glass-button';
 
 export const TripDetails = () => {
+    // Grab the trip ID from the URL params (e.g., /trip/abc-123)
     const { id } = useParams();
     const navigate = useNavigate();
     const { trips, user, bookTrip, deleteTrip, language, getUserBookingForTrip, rateTrip } = useApp();
     const t = translations[language].trip;
     const commonT = translations[language].common;
 
+    // Find the trip from our global state using the URL param
     const trip = trips.find(t => t.id === id);
+
+    // Weather data fetched from Gemini AI — shows forecast for the trip's location
     const [weather, setWeather] = useState<AIWeatherForecast | null>(null);
+
+    // Tracks the booking flow state: idle (default), success (just booked), error (something went wrong)
     const [bookingStatus, setBookingStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+    // For the image gallery — tracks which image is currently shown as the big hero image
     const [selectedImage, setSelectedImage] = useState(0);
+
+    // Controls visibility of the booking confirmation modal
     const [showBookingModal, setShowBookingModal] = useState(false);
 
+    // -- Rating state --
+    // These are for the post-trip rating form that shows up after a completed booking
     const [ratingValue, setRatingValue] = useState(5);
     const [ratingComment, setRatingComment] = useState('');
     const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
+    // Check if the current user has a booking for this trip, and whether they can rate it.
+    // You can only rate a trip if your booking status is "completed" and you haven't rated yet.
     const booking = trip ? getUserBookingForTrip(trip.id) : undefined;
     const canRate = booking?.status === 'completed' && !booking?.hasRated;
 
+    // Fetch the AI-powered weather forecast when the trip loads.
+    // This calls the Gemini API with the trip's location to get temperature and multi-day forecast.
     useEffect(() => {
         if (trip) {
             getAIWeatherForecast(trip.location).then(data => {
@@ -36,6 +61,7 @@ export const TripDetails = () => {
         }
     }, [trip]);
 
+    // If the trip doesn't exist (bad URL or deleted), show a simple error with a link home
     if (!trip) return (
         <div className="p-20 text-center">
             <p className="text-xl font-semibold dark:text-white">Trip not found</p>
@@ -43,10 +69,19 @@ export const TripDetails = () => {
         </div>
     );
 
+    // -- Key permission checks --
+    // isOrganizer: true if the current user is the guide who created this trip.
+    //   Guides see a "delete" button instead of "book", since you can't book your own trip.
+    // hasFunds: checks if the user has enough wallet balance to cover the trip price.
+    // spotsLeft: how many seats are still available for booking.
     const isOrganizer = user.role === 'guide' && user.id === trip.guideId;
     const hasFunds = user.walletBalance >= trip.price;
     const spotsLeft = trip.maxSeats - trip.bookedSeats;
 
+    // Handle the actual booking when the user confirms in the modal.
+    // bookTrip returns true/false from the context — it handles wallet deduction,
+    // seat incrementing, and creating the booking record all in one go.
+    // We show success/error for 3 seconds then reset back to idle.
     const handleBook = () => {
         if (bookTrip(trip.id)) {
             setBookingStatus('success');
@@ -58,6 +93,8 @@ export const TripDetails = () => {
         }
     };
 
+    // Delete the trip — only available to the guide who created it.
+    // Shows a browser confirm dialog first because this is destructive.
     const handleDelete = () => {
         if (window.confirm('Are you sure you want to delete this trip?')) {
             deleteTrip(trip.id);
@@ -65,12 +102,16 @@ export const TripDetails = () => {
         }
     };
 
+    // Submit a rating for a completed trip. The rateTrip function in context
+    // handles adding the rating to the trip's ratings array and updating the average.
     const handleSubmitRating = () => {
         if (rateTrip(trip.id, ratingValue, ratingComment)) {
             setRatingSubmitted(true);
         }
     };
 
+    // A reusable star rating component used both for the rating form (interactive)
+    // and for displaying existing ratings (read-only when onChange is undefined).
     const StarRating = ({ value, onChange }: { value: number; onChange?: (v: number) => void }) => (
         <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -93,7 +134,7 @@ export const TripDetails = () => {
 
     return (
         <div className="py-8 px-6">
-            {/* Back Button */}
+            {/* Back Button — navigates to the previous page in browser history */}
             <button
                 onClick={() => navigate(-1)}
                 className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-6 transition-colors"
@@ -102,10 +143,13 @@ export const TripDetails = () => {
                 {commonT.back}
             </button>
 
+            {/* Main layout: 2-column grid on large screens (images+info on left, booking sidebar on right) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Images + Description */}
+                {/* Left Column: Images, description, weather, ratings — takes up 2/3 of the width */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Image Gallery */}
+                    {/* Image Gallery — hero image on top with clickable thumbnails below.
+                        The category and difficulty badges are overlaid on the top-left of the hero image,
+                        and the average rating badge sits in the top-right corner. */}
                     <div className="space-y-3">
                         <div className="relative rounded-2xl overflow-hidden aspect-[16/9]">
                             <img
@@ -113,7 +157,10 @@ export const TripDetails = () => {
                                 alt={trip.title}
                                 className="w-full h-full object-cover"
                             />
+                            {/* Gradient overlay at the bottom for visual depth */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+
+                            {/* Category and difficulty badges — color-coded by difficulty level */}
                             <div className="absolute top-4 left-4 flex gap-2">
                                 <span className="px-3 py-1 bg-emerald-500 rounded-full text-xs font-bold text-white uppercase tracking-wide">
                                     {trip.category}
@@ -125,6 +172,8 @@ export const TripDetails = () => {
                                     {trip.difficulty}
                                 </span>
                             </div>
+
+                            {/* Average rating badge — only shows if the trip has been rated */}
                             {trip.averageRating && (
                                 <div className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1.5 bg-white/20 backdrop-blur-md rounded-full">
                                     <Star size={14} fill="gold" className="text-amber-400" />
@@ -133,7 +182,8 @@ export const TripDetails = () => {
                             )}
                         </div>
 
-                        {/* Thumbnails */}
+                        {/* Thumbnail strip — only shows when there are multiple images.
+                            Clicking a thumbnail swaps the hero image above. */}
                         {trip.images.length > 1 && (
                             <div className="flex gap-2 overflow-x-auto">
                                 {trip.images.map((img, i) => (
@@ -161,7 +211,8 @@ export const TripDetails = () => {
                         </div>
                     </div>
 
-                    {/* Stats */}
+                    {/* Stats Grid — four key metrics displayed in a 4-column grid.
+                        Each stat card has an icon, label, and value. */}
                     <div className="grid grid-cols-4 gap-3">
                         {[
                             { icon: Clock, label: commonT.duration, value: `${trip.durationDays} days`, color: 'text-blue-500' },
@@ -177,13 +228,14 @@ export const TripDetails = () => {
                         ))}
                     </div>
 
-                    {/* Description */}
+                    {/* Description Section */}
                     <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                         <h2 className="font-bold text-lg dark:text-white mb-3">Description</h2>
                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{trip.description}</p>
                     </div>
 
-                    {/* AI Recommendations */}
+                    {/* AI Packing Recommendations — generated by Gemini when the trip was created.
+                        Only shows up if the guide fetched weather/recommendations during trip creation. */}
                     {trip.aiRecommendations && (
                         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl p-5">
                             <div className="flex items-start gap-3">
@@ -196,7 +248,9 @@ export const TripDetails = () => {
                         </div>
                     )}
 
-                    {/* Weather */}
+                    {/* Weather Forecast Section — fetched from the Gemini AI API on page load.
+                        Shows the current temperature and a multi-day forecast if available.
+                        This helps travelers decide if the weather is good for the trip dates. */}
                     {weather && (
                         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 rounded-xl p-5 border border-blue-100 dark:border-slate-700">
                             <div className="flex items-center justify-between mb-4">
@@ -219,7 +273,8 @@ export const TripDetails = () => {
                         </div>
                     )}
 
-                    {/* Ratings */}
+                    {/* Rating Form — only visible to users who completed this trip and haven't rated yet.
+                        Once submitted, it disappears and shows a thank-you message instead. */}
                     {canRate && !ratingSubmitted && (
                         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                             <h3 className="font-bold dark:text-white flex items-center gap-2 mb-4">
@@ -241,6 +296,7 @@ export const TripDetails = () => {
                         </div>
                     )}
 
+                    {/* Rating submitted confirmation — shows after successfully submitting a rating */}
                     {ratingSubmitted && (
                         <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-4">
                             <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
@@ -250,6 +306,8 @@ export const TripDetails = () => {
                         </div>
                     )}
 
+                    {/* Existing Reviews Section — shows all ratings/reviews left by other travelers.
+                        Each review has star display, date, and optional comment text. */}
                     {trip.ratings && trip.ratings.length > 0 && (
                         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
                             <h3 className="font-bold text-lg dark:text-white flex items-center gap-2 mb-4">
@@ -275,14 +333,17 @@ export const TripDetails = () => {
                     )}
                 </div>
 
-                {/* Right Column: Booking Sidebar */}
+                {/* Right Column: Booking Sidebar — sticky on desktop so it follows as you scroll.
+                    This is where the price, key info, and booking button live. */}
                 <div className="space-y-4">
                     <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 sticky top-24">
+                        {/* Price display */}
                         <div className="mb-4">
                             <span className="text-xs text-slate-400">{commonT.perPerson}</span>
                             <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(trip.price)}</p>
                         </div>
 
+                        {/* Quick info summary */}
                         <div className="space-y-3 mb-6 text-sm">
                             <div className="flex justify-between text-slate-500 dark:text-slate-400">
                                 <span>Duration</span>
@@ -298,6 +359,12 @@ export const TripDetails = () => {
                             </div>
                         </div>
 
+                        {/* Booking Action Area — different states depending on user role and booking status:
+                            1. Guide who created this trip -> "Organizer" badge + delete button
+                            2. Already booked -> "Booked" badge + e-ticket link
+                            3. Just booked (success) -> green "Booked" confirmation
+                            4. Booking failed (error) -> red "Insufficient Funds" message
+                            5. Default -> "Book Now" button (disabled if no spots or no funds) */}
                         {isOrganizer ? (
                             <div className="space-y-2">
                                 <MetalButton variant="default" disabled className="w-full">{t.organizer}</MetalButton>
@@ -313,6 +380,7 @@ export const TripDetails = () => {
                                 <MetalButton variant="success" disabled className="w-full">
                                     <CheckCircle size={20} className="mr-2" /> Booked
                                 </MetalButton>
+                                {/* E-Ticket button — navigates to the ticket page with QR code */}
                                 <button
                                     onClick={() => navigate(`/ticket/${booking.id}`)}
                                     className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors border border-emerald-200 dark:border-emerald-800"
@@ -339,6 +407,7 @@ export const TripDetails = () => {
                             </MetalButton>
                         )}
 
+                        {/* Warning message when the user doesn't have enough wallet balance */}
                         {!hasFunds && !booking && !isOrganizer && (
                             <p className="text-xs text-red-500 mt-2 text-center">Insufficient wallet balance</p>
                         )}
@@ -346,7 +415,9 @@ export const TripDetails = () => {
                 </div>
             </div>
 
-            {/* Booking Confirmation Modal */}
+            {/* Booking Confirmation Modal — pops up when the user clicks "Book Now".
+                Shows a summary of the trip, the price, the user's current balance,
+                and what their balance will be after booking. Two buttons: Cancel and Confirm. */}
             {showBookingModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
@@ -355,6 +426,7 @@ export const TripDetails = () => {
                         </button>
                         <h2 className="text-xl font-bold dark:text-white mb-4">Confirm Booking</h2>
 
+                        {/* Trip preview card inside the modal */}
                         <div className="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
                             <img src={trip.images[0]} alt={trip.title} className="w-16 h-12 rounded-lg object-cover" />
                             <div>
@@ -363,6 +435,7 @@ export const TripDetails = () => {
                             </div>
                         </div>
 
+                        {/* Price breakdown — shows trip price, current balance, and remaining balance */}
                         <div className="space-y-2 mb-6 text-sm">
                             <div className="flex justify-between text-slate-500 dark:text-slate-400">
                                 <span>Trip price</span>
@@ -378,6 +451,7 @@ export const TripDetails = () => {
                             </div>
                         </div>
 
+                        {/* Action buttons */}
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowBookingModal(false)}

@@ -1,3 +1,30 @@
+/**
+ * AdminDashboard.tsx - The control center for platform administrators.
+ *
+ * This page gives admins a bird's-eye view of the entire SafarGo platform and
+ * the power to manage everything. It's structured as a tabbed interface with:
+ *
+ *   Overview tab: Dashboard stats (total users, revenue, guides, banned users, etc.)
+ *                 plus quick-glance lists of recent users and active trips
+ *   Users tab:    Full user table with actions to ban/unban, switch roles, and top up wallets
+ *   Trips tab:    All trips with archive/restore and permanent delete actions
+ *   Guides tab:   Guide-specific view with verify/unverify and ban actions
+ *   Applications: Review pending guide applications (approve or reject)
+ *
+ * The admin dashboard has its own local state for users and stats (fetched directly
+ * from Supabase), separate from the global AppContext trips. This is because the
+ * admin needs to see ALL users (not just their own profile) and needs the full
+ * picture of the platform.
+ *
+ * Admin powers:
+ *   - Ban/unban any user (prevents them from booking trips)
+ *   - Switch user roles between traveler and guide
+ *   - Top up any user's wallet balance (for testing/support)
+ *   - Archive/restore trips (soft delete)
+ *   - Permanently delete trips (hard delete with confirmation)
+ *   - Verify/unverify guides (trust badge)
+ *   - Approve/reject guide applications
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -11,12 +38,16 @@ import {
 } from 'lucide-react';
 import { GuideApplication } from '../types';
 
+// The five tabs available in the admin dashboard
 type Tab = 'overview' | 'users' | 'trips' | 'guides' | 'applications';
 
 export const AdminDashboard = () => {
+    // Pull admin actions from global context, plus the current admin user and trips
     const { user, logout, trips, adminBanUser, adminArchiveTrip, adminDeleteTrip, adminVerifyGuide, adminChangeRole, adminApproveApplication, adminRejectApplication } = useApp();
     const navigate = useNavigate();
 
+    // Local type for the admin's view of a user (includes email and other fields
+    // that the regular User type might not expose)
     interface AdminUser {
         id: string;
         name: string;
@@ -32,39 +63,56 @@ export const AdminDashboard = () => {
         memberSince: string;
     }
 
+    // Aggregated stats for the overview dashboard
     interface AdminStats {
         totalUsers: number;
         travelers: number;
         guides: number;
         verifiedGuides: number;
         bannedUsers: number;
-        totalBalance: number;
-        totalRevenue: number;
+        totalBalance: number;    // sum of all user wallet balances
+        totalRevenue: number;    // estimated revenue (price * booked seats for all trips)
         archivedTrips: number;
     }
 
+    // Local state for the admin dashboard (separate from global context)
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [applications, setApplications] = useState<GuideApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    // Tracks which item currently has an action in progress (for loading spinners on buttons)
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+    // Load all admin data on mount
     useEffect(() => {
         loadData();
     }, []);
 
+    /**
+     * loadData - Fetches all the data the admin dashboard needs.
+     *
+     * This pulls:
+     * 1. All user profiles (excluding admins - we don't need to manage ourselves)
+     * 2. Calculates aggregate stats from the profiles and trips
+     * 3. All guide applications (with user info joined in)
+     *
+     * The stats are calculated client-side from the fetched data rather than
+     * using Supabase aggregate queries. This works fine at our scale.
+     */
     const loadData = async () => {
         setLoading(true);
         setError('');
         try {
+            // Fetch all non-admin user profiles
             const { data: profiles } = await supabase.from('profiles').select('*').neq('role', 'admin');
 
+            // Map raw Supabase rows to our AdminUser shape
             const mappedUsers: AdminUser[] = (profiles || []).map((p: Record<string, unknown>) => ({
                 id: p.id as string,
                 name: p.name as string,
-                email: (p.name as string),
+                email: (p.name as string), // using name as email placeholder since profiles don't store email
                 avatar: p.avatar as string || '',
                 role: p.role as string || 'traveler',
                 walletBalance: Number(p.wallet_balance) || 0,
@@ -77,6 +125,8 @@ export const AdminDashboard = () => {
             }));
 
             setUsers(mappedUsers);
+
+            // Calculate platform-wide stats from the loaded data
             const archivedCount = trips.filter(t => t.isArchived).length;
             const revenue = trips.reduce((sum, t) => sum + (t.price * t.bookedSeats), 0);
 
@@ -91,13 +141,15 @@ export const AdminDashboard = () => {
                 archivedTrips: archivedCount,
             });
 
-            // Load guide applications
+            // Load all guide applications with their associated user info
             const { data: apps } = await supabase
                 .from('guide_applications')
                 .select('*')
                 .order('created_at', { ascending: false });
 
             if (apps) {
+                // For each application, look up the applicant's name and avatar
+                // from the profiles we already fetched
                 const mappedApps: GuideApplication[] = await Promise.all(
                     apps.map(async (a: Record<string, unknown>) => {
                         const appUser = (profiles || []).find((p: Record<string, unknown>) => p.id === a.user_id);
@@ -126,6 +178,11 @@ export const AdminDashboard = () => {
         }
     };
 
+    // --- Action handlers ---
+    // Each handler wraps the global admin action with local loading state management
+    // and also updates the local users array so the table reflects changes immediately.
+
+    /** Ban or unban a user and update the local users list */
     const handleBanUser = async (userId: string, ban: boolean) => {
         setActionLoading(userId);
         await adminBanUser(userId, ban);
@@ -133,6 +190,7 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    /** Toggle a user's role between traveler and guide */
     const handleChangeRole = async (userId: string, currentRole: string) => {
         const newRole = currentRole === 'traveler' ? 'guide' : 'traveler';
         setActionLoading(userId);
@@ -141,12 +199,14 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    /** Archive or restore a trip */
     const handleArchiveTrip = async (tripId: string, archive: boolean) => {
         setActionLoading(tripId);
         await adminArchiveTrip(tripId, archive);
         setActionLoading(null);
     };
 
+    /** Permanently delete a trip (with browser confirmation dialog) */
     const handleDeleteTrip = async (tripId: string) => {
         if (!window.confirm('Are you sure? This permanently deletes the trip and all its bookings.')) return;
         setActionLoading(tripId);
@@ -154,6 +214,7 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    /** Verify or unverify a guide (toggle the trust badge) */
     const handleVerifyGuide = async (userId: string, verify: boolean) => {
         setActionLoading(userId);
         await adminVerifyGuide(userId, verify);
@@ -161,6 +222,13 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    /**
+     * handleTopUp - Admin can add funds to any user's wallet.
+     *
+     * Shows a browser prompt for the amount, validates it's a positive number,
+     * then updates the balance directly in Supabase. This is useful for testing
+     * or for customer support (giving a user a refund/credit).
+     */
     const handleTopUp = async (userId: string, currentBalance: number) => {
         const input = window.prompt('Enter amount to add (UZS):', '500000');
         if (!input) return;
@@ -173,14 +241,17 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    /** Log out the admin and redirect to login page */
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
+    // Pre-filter users by role for the guides tab
     const guides = users.filter(u => u.role === 'guide');
     const travelers = users.filter(u => u.role === 'traveler');
 
+    // Tab definitions with icons and labels
     const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: 'overview', label: 'Overview', icon: TrendingUp },
         { id: 'users', label: 'Users', icon: Users },
@@ -189,16 +260,20 @@ export const AdminDashboard = () => {
         { id: 'applications', label: 'Applications', icon: ClipboardCheck },
     ];
 
+    // Count pending applications for the badge
     const pendingApps = applications.filter(a => a.status === 'pending');
 
+    /** Approve a guide application, then reload all data to refresh stats */
     const handleApproveApp = async (appId: string, userId: string) => {
         setActionLoading(appId);
         await adminApproveApplication(appId, userId);
         setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'approved' as const } : a));
         setActionLoading(null);
+        // Reload everything because approving changes user roles and stats
         loadData();
     };
 
+    /** Reject a guide application */
     const handleRejectApp = async (appId: string) => {
         setActionLoading(appId);
         await adminRejectApplication(appId);
@@ -206,6 +281,7 @@ export const AdminDashboard = () => {
         setActionLoading(null);
     };
 
+    // Show a full-screen loader while initial data is being fetched
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -219,9 +295,10 @@ export const AdminDashboard = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-            {/* Top Bar */}
+            {/* Top Bar - Shows the admin branding and logout button */}
             <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
                 <div className="flex items-center gap-3">
+                    {/* Red icon to distinguish admin panel from the main app's green branding */}
                     <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center">
                         <ShieldCheck size={20} className="text-white" />
                     </div>
@@ -241,7 +318,7 @@ export const AdminDashboard = () => {
             </header>
 
             <div className="flex">
-                {/* Sidebar */}
+                {/* Sidebar navigation - Hidden on mobile, shown on desktop (md+) */}
                 <nav role="tablist" aria-label="Admin sections" className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-[calc(100vh-73px)] p-4 hidden md:block">
                     <div className="space-y-1">
                         {tabs.map(tab => (
@@ -263,7 +340,7 @@ export const AdminDashboard = () => {
                     </div>
                 </nav>
 
-                {/* Mobile tabs */}
+                {/* Mobile tab bar - Fixed at the bottom of the screen on small devices */}
                 <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex z-20">
                     {tabs.map(tab => (
                         <button
@@ -281,8 +358,9 @@ export const AdminDashboard = () => {
                     ))}
                 </div>
 
-                {/* Main Content */}
+                {/* Main Content Area - Renders the active tab's content */}
                 <main className="flex-1 p-6 pb-24 md:pb-6">
+                    {/* Error banner - shows if data loading failed */}
                     {error && (
                         <div role="alert" className="mb-6 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 text-red-700 dark:text-red-300">
                             <AlertCircle size={18} />
@@ -290,11 +368,15 @@ export const AdminDashboard = () => {
                         </div>
                     )}
 
-                    {/* Overview Tab */}
+                    {/* ============================================================ */}
+                    {/* OVERVIEW TAB - Platform stats at a glance                    */}
+                    {/* Shows 8 stat cards in a grid plus recent users and trips     */}
+                    {/* ============================================================ */}
                     {activeTab === 'overview' && stats && (
                         <div className="space-y-6">
                             <h2 className="text-2xl font-bold dark:text-white">Dashboard Overview</h2>
 
+                            {/* First row of stats: users, travelers, guides, total balance */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <StatCard icon={Users} label="Total Users" value={stats.totalUsers.toString()} color="blue" />
                                 <StatCard icon={Eye} label="Travelers" value={stats.travelers.toString()} color="emerald" />
@@ -302,6 +384,7 @@ export const AdminDashboard = () => {
                                 <StatCard icon={Wallet} label="Total Balance" value={formatCurrency(stats.totalBalance)} color="amber" />
                             </div>
 
+                            {/* Second row of stats: revenue, verified guides, banned users, archived trips */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                 <StatCard icon={DollarSign} label="Est. Revenue" value={formatCurrency(stats.totalRevenue)} color="emerald" />
                                 <StatCard icon={UserCheck} label="Verified Guides" value={stats.verifiedGuides.toString()} color="blue" />
@@ -310,7 +393,7 @@ export const AdminDashboard = () => {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Recent Users */}
+                                {/* Recent Users panel - shows the 5 most recently loaded users */}
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
                                     <h3 className="font-semibold dark:text-white mb-4 flex items-center gap-2">
                                         <Users size={18} className="text-blue-500" />
@@ -323,6 +406,7 @@ export const AdminDashboard = () => {
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium dark:text-white truncate">
                                                         {u.name}
+                                                        {/* Banned users get a red "BANNED" label next to their name */}
                                                         {u.isBanned && <span className="ml-2 text-[10px] text-red-500 font-bold">BANNED</span>}
                                                     </p>
                                                     <p className="text-xs text-slate-400">{u.email}</p>
@@ -333,7 +417,7 @@ export const AdminDashboard = () => {
                                     </div>
                                 </div>
 
-                                {/* Active Trips */}
+                                {/* Active Trips panel - shows the 5 most recent non-archived trips */}
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
                                     <h3 className="font-semibold dark:text-white mb-4 flex items-center gap-2">
                                         <Map size={18} className="text-emerald-500" />
@@ -347,6 +431,7 @@ export const AdminDashboard = () => {
                                                     <p className="text-sm font-medium dark:text-white truncate">{trip.title}</p>
                                                     <p className="text-xs text-slate-400">{trip.location}</p>
                                                 </div>
+                                                {/* Show booking fill rate (e.g., 3/10 seats) */}
                                                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                                                     {trip.bookedSeats}/{trip.maxSeats}
                                                 </span>
@@ -358,7 +443,10 @@ export const AdminDashboard = () => {
                         </div>
                     )}
 
-                    {/* Users Tab */}
+                    {/* ============================================================ */}
+                    {/* USERS TAB - Full table of all platform users                 */}
+                    {/* Admin can ban/unban, switch roles, and top up wallets here    */}
+                    {/* ============================================================ */}
                     {activeTab === 'users' && (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
@@ -380,9 +468,11 @@ export const AdminDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {users.map(u => (
+                                                // Banned users get a subtle red background, others get a hover effect
                                                 <tr key={u.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${u.isBanned ? 'bg-red-50/50 dark:bg-red-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
+                                                            {/* Banned users' avatars are grayed out */}
                                                             <img src={u.avatar} alt={u.name} className={`w-8 h-8 rounded-full object-cover ${u.isBanned ? 'opacity-50 grayscale' : ''}`} />
                                                             <div>
                                                                 <p className="text-sm font-medium dark:text-white">{u.name}</p>
@@ -405,7 +495,7 @@ export const AdminDashboard = () => {
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-2">
-                                                            {/* Ban/Unban */}
+                                                            {/* Ban/Unban toggle button */}
                                                             <button
                                                                 onClick={() => handleBanUser(u.id, !u.isBanned)}
                                                                 disabled={actionLoading === u.id}
@@ -419,7 +509,7 @@ export const AdminDashboard = () => {
                                                                 {u.isBanned ? <ShieldCheck size={14} /> : <Ban size={14} />}
                                                             </button>
 
-                                                            {/* Switch Role */}
+                                                            {/* Role switch button (traveler <-> guide) */}
                                                             <button
                                                                 onClick={() => handleChangeRole(u.id, u.role)}
                                                                 disabled={actionLoading === u.id}
@@ -429,7 +519,7 @@ export const AdminDashboard = () => {
                                                                 <ArrowRightLeft size={14} />
                                                             </button>
 
-                                                            {/* Top Up Balance */}
+                                                            {/* Wallet top-up button (for testing/support) */}
                                                             <button
                                                                 onClick={() => handleTopUp(u.id, u.walletBalance)}
                                                                 disabled={actionLoading === u.id}
@@ -445,6 +535,7 @@ export const AdminDashboard = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                {/* Empty state when no users exist */}
                                 {users.length === 0 && (
                                     <div className="p-12 text-center text-slate-400">
                                         <Users size={32} className="mx-auto mb-2 opacity-50" />
@@ -455,7 +546,10 @@ export const AdminDashboard = () => {
                         </div>
                     )}
 
-                    {/* Trips Tab */}
+                    {/* ============================================================ */}
+                    {/* TRIPS TAB - All trips with archive/delete actions             */}
+                    {/* Shows trip details, category, price, booking fill, and status */}
+                    {/* ============================================================ */}
                     {activeTab === 'trips' && (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
@@ -478,6 +572,7 @@ export const AdminDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {trips.map(trip => (
+                                                // Archived trips are dimmed out with reduced opacity
                                                 <tr key={trip.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${trip.isArchived ? 'bg-amber-50/50 dark:bg-amber-900/10 opacity-70' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
@@ -507,7 +602,7 @@ export const AdminDashboard = () => {
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-2">
-                                                            {/* Archive/Restore */}
+                                                            {/* Archive/Restore toggle - soft delete/restore */}
                                                             <button
                                                                 onClick={() => handleArchiveTrip(trip.id, !trip.isArchived)}
                                                                 disabled={actionLoading === trip.id}
@@ -521,7 +616,7 @@ export const AdminDashboard = () => {
                                                                 {trip.isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                                                             </button>
 
-                                                            {/* Delete */}
+                                                            {/* Permanent delete - shows a confirmation dialog */}
                                                             <button
                                                                 onClick={() => handleDeleteTrip(trip.id)}
                                                                 disabled={actionLoading === trip.id}
@@ -537,6 +632,7 @@ export const AdminDashboard = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                {/* Empty state */}
                                 {trips.length === 0 && (
                                     <div className="p-12 text-center text-slate-400">
                                         <Map size={32} className="mx-auto mb-2 opacity-50" />
@@ -547,7 +643,10 @@ export const AdminDashboard = () => {
                         </div>
                     )}
 
-                    {/* Guides Tab */}
+                    {/* ============================================================ */}
+                    {/* GUIDES TAB - Card-based view of all registered guides         */}
+                    {/* Shows guide stats (level, trips, rating) and admin actions    */}
+                    {/* ============================================================ */}
                     {activeTab === 'guides' && (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
@@ -558,6 +657,8 @@ export const AdminDashboard = () => {
                             {guides.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {guides.map(g => (
+                                        // Each guide gets a card with their info, stats, and action buttons
+                                        // Banned guides have reduced opacity and a red border
                                         <div key={g.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 ${g.isBanned ? 'opacity-60 border-red-300 dark:border-red-800' : ''}`}>
                                             <div className="flex items-center gap-3 mb-4">
                                                 <img src={g.avatar} alt={g.name} className="w-12 h-12 rounded-full object-cover" />
@@ -569,6 +670,7 @@ export const AdminDashboard = () => {
                                                     <p className="text-xs text-slate-400">{g.email}</p>
                                                 </div>
                                             </div>
+                                            {/* Guide stats: level, completed trips, and average rating */}
                                             <div className="grid grid-cols-3 gap-3 text-center">
                                                 <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-2">
                                                     <p className="text-xs text-slate-400">Level</p>
@@ -584,8 +686,9 @@ export const AdminDashboard = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Admin Actions */}
+                                            {/* Admin action buttons for this guide */}
                                             <div className="mt-4 flex items-center gap-2">
+                                                {/* Verify/Unverify button - toggles the trust badge */}
                                                 <button
                                                     onClick={() => handleVerifyGuide(g.id, !g.isVerified)}
                                                     disabled={actionLoading === g.id}
@@ -598,6 +701,7 @@ export const AdminDashboard = () => {
                                                     {g.isVerified ? <><ShieldOff size={12} /> Unverify</> : <><ShieldCheck size={12} /> Verify</>}
                                                 </button>
 
+                                                {/* Ban/Unban button */}
                                                 <button
                                                     onClick={() => handleBanUser(g.id, !g.isBanned)}
                                                     disabled={actionLoading === g.id}
@@ -611,6 +715,7 @@ export const AdminDashboard = () => {
                                                 </button>
                                             </div>
 
+                                            {/* Footer: member since date and verification status */}
                                             <div className="mt-2 flex items-center justify-between">
                                                 <span className="text-xs text-slate-400">Since {g.memberSince}</span>
                                                 {g.isVerified ? (
@@ -625,6 +730,7 @@ export const AdminDashboard = () => {
                                     ))}
                                 </div>
                             ) : (
+                                // Empty state when no guides are registered
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
                                     <ShieldCheck size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                                     <p className="text-slate-400">No guides registered yet</p>
@@ -634,7 +740,10 @@ export const AdminDashboard = () => {
                         </div>
                     )}
 
-                    {/* Applications Tab */}
+                    {/* ============================================================ */}
+                    {/* APPLICATIONS TAB - Review guide applications                  */}
+                    {/* Shows applicant details, experience, and approve/reject       */}
+                    {/* ============================================================ */}
                     {activeTab === 'applications' && (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
@@ -645,6 +754,8 @@ export const AdminDashboard = () => {
                             {applications.length > 0 ? (
                                 <div className="space-y-4">
                                     {applications.map(app => (
+                                        // Each application card has a colored border based on status:
+                                        // green for approved, red for rejected, default for pending
                                         <div key={app.id} className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 ${app.status === 'approved' ? 'border-emerald-300 dark:border-emerald-800' : app.status === 'rejected' ? 'border-red-300 dark:border-red-800 opacity-60' : ''}`}>
                                             <div className="flex items-start gap-4">
                                                 <img src={app.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userName || '')}&background=10b981&color=fff`} alt={app.userName} className="w-12 h-12 rounded-full object-cover" />
@@ -654,6 +765,7 @@ export const AdminDashboard = () => {
                                                             <p className="font-semibold dark:text-white">{app.userName}</p>
                                                             <p className="text-xs text-slate-400">Applied {new Date(app.createdAt).toLocaleDateString()}</p>
                                                         </div>
+                                                        {/* Status badge: pending (amber), approved (green), rejected (red) */}
                                                         <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
                                                             app.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                                                             : app.status === 'approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
@@ -661,6 +773,7 @@ export const AdminDashboard = () => {
                                                         }`}>{app.status}</span>
                                                     </div>
 
+                                                    {/* Application details: name, age, gender, user ID */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                                                         <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2">
                                                             <p className="text-[10px] text-slate-400 uppercase">Legal Name</p>
@@ -680,11 +793,13 @@ export const AdminDashboard = () => {
                                                         </div>
                                                     </div>
 
+                                                    {/* The applicant's experience description */}
                                                     <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 mb-3">
                                                         <p className="text-[10px] text-slate-400 uppercase mb-1">Experience</p>
                                                         <p className="text-sm text-slate-600 dark:text-slate-300">{app.experience}</p>
                                                     </div>
 
+                                                    {/* Approve/Reject buttons only show for pending applications */}
                                                     {app.status === 'pending' && (
                                                         <div className="flex gap-2">
                                                             <button
@@ -709,6 +824,7 @@ export const AdminDashboard = () => {
                                     ))}
                                 </div>
                             ) : (
+                                // Empty state when no applications exist
                                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
                                     <ClipboardCheck size={48} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                                     <p className="text-slate-400">No guide applications yet</p>
@@ -722,14 +838,23 @@ export const AdminDashboard = () => {
     );
 };
 
-// --- Helper Components ---
+// =========================================================================
+// HELPER COMPONENTS - Small presentational components used in the dashboard
+// =========================================================================
 
+/**
+ * StatCard - A single statistic card for the overview dashboard.
+ *
+ * Displays an icon, a big number/value, and a label. The color prop
+ * determines the icon background color to visually categorize different stats.
+ */
 const StatCard = ({ icon: Icon, label, value, color }: {
     icon: React.ElementType;
     label: string;
     value: string;
     color: 'blue' | 'emerald' | 'purple' | 'amber' | 'red' | 'slate';
 }) => {
+    // Color mapping for the icon background
     const colors = {
         blue: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600',
         emerald: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600',
@@ -750,6 +875,12 @@ const StatCard = ({ icon: Icon, label, value, color }: {
     );
 };
 
+/**
+ * RoleBadge - A small colored badge that shows a user's role (traveler/guide).
+ *
+ * Travelers get a blue badge, guides get a green badge.
+ * Used throughout the admin dashboard wherever user roles are displayed.
+ */
 const RoleBadge = ({ role }: { role: string }) => {
     const styles: Record<string, string> = {
         traveler: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
