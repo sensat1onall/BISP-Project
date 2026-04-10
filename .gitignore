@@ -3,6 +3,9 @@ node_modules/
 server/node_modules/
 server/dist/
 
+# dev tools config
+.claude/
+
 # production build
 dist/
 
