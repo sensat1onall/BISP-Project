@@ -5,6 +5,7 @@ server/dist/
 
 # dev tools config
 .claude/
+.obsidian/
 
 # production build
 dist/
